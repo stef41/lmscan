@@ -91,6 +91,66 @@ _MODEL_PROFILES: dict[str, dict] = {
         ],
         "weight": 0.7,
     },
+    "Qwen / Qwen2": {
+        "vocabulary": [
+            "elucidate", "paradigm", "multifaceted", "nuanced",
+            "comprehensive", "facilitate", "leverage", "robust",
+        ],
+        "phrases": [
+            "i'd be happy to help", "let me think about this step by step",
+            "i hope this helps", "to provide a comprehensive",
+        ],
+        "hedging": [
+            "to some extent", "it's worth noting",
+            "it should be noted", "broadly speaking",
+        ],
+        "weight": 0.9,
+    },
+    "DeepSeek": {
+        "vocabulary": [
+            "synergistic", "holistic", "paradigmatic", "leverage",
+            "optimize", "comprehensive", "robust", "facilitate",
+        ],
+        "phrases": [
+            "let me analyze", "based on my analysis",
+            "let me break this down", "here's my analysis",
+        ],
+        "hedging": [
+            "it should be noted", "one could argue",
+            "it's important to consider", "from a broader perspective",
+        ],
+        "weight": 0.9,
+    },
+    "Cohere / Command R": {
+        "vocabulary": [
+            "pivotal", "quintessential", "nuanced", "streamline",
+            "comprehensive", "innovative", "facilitate",
+        ],
+        "phrases": [
+            "here's what i found", "based on the information",
+            "i can help with that", "here are the key points",
+        ],
+        "hedging": [
+            "that said", "having said that",
+            "it's worth mentioning", "on the other hand",
+        ],
+        "weight": 0.8,
+    },
+    "Phi / Phi-3": {
+        "vocabulary": [
+            "fundamentally", "essentially", "critically", "notably",
+            "significantly", "effectively", "optimize",
+        ],
+        "phrases": [
+            "the key point is", "to summarize",
+            "in short", "the main idea",
+        ],
+        "hedging": [
+            "in essence", "broadly speaking",
+            "generally speaking", "for the most part",
+        ],
+        "weight": 0.7,
+    },
 }
 
 

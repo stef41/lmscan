@@ -12,12 +12,38 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("input", nargs="?", help="Text string or file path to scan. Use '-' for stdin.")
     parser.add_argument("--file", "-f", help="Path to text file to scan")
-    parser.add_argument("--format", choices=["text", "json"], default="text", help="Output format")
+    parser.add_argument("--dir", "-d", help="Scan all text files in directory")
+    parser.add_argument("--mixed", action="store_true", help="Show per-paragraph analysis for mixed content detection")
+    parser.add_argument("--format", choices=["text", "json", "html"], default="text", help="Output format")
     parser.add_argument("--sentences", action="store_true", help="Show per-sentence analysis")
     parser.add_argument("--threshold", type=float, default=0.0, help="Exit with code 1 if AI probability exceeds threshold (for CI)")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     args = parser.parse_args(argv)
+
+    # ── Directory batch mode ──────────────────────────────────────────────
+    if args.dir:
+        if not os.path.isdir(args.dir):
+            print(f"Error: directory '{args.dir}' not found", file=sys.stderr)
+            return 1
+        from .scanner import scan_directory
+        from .report import format_directory_report
+
+        results = scan_directory(args.dir)
+        if args.format == "json":
+            import json
+            from dataclasses import asdict
+
+            data = []
+            for fname, res in results:
+                d = asdict(res)
+                d.pop("text", None)
+                d["file"] = fname
+                data.append(d)
+            print(json.dumps(data, indent=2, ensure_ascii=False))
+        else:
+            print(format_directory_report(results, dirname=args.dir))
+        return 0
 
     # Determine input text
     text = None
@@ -49,15 +75,25 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     from .scanner import scan
-    from .report import format_report, format_json
+    from .report import format_report, format_json, format_html
 
     result = scan(text)
 
     if args.format == "json":
         print(format_json(result))
+    elif args.format == "html":
+        print(format_html(result))
     else:
         output = format_report(result, show_sentences=args.sentences)
         print(output)
+
+        if args.mixed:
+            from .scanner import scan_mixed
+            from .report import format_paragraph_report
+
+            _, paragraphs = scan_mixed(text)
+            print()
+            print(format_paragraph_report(paragraphs))
 
     if args.threshold > 0 and result.ai_probability > args.threshold:
         return 1

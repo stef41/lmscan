@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import time
 
-from ._types import ScanResult, SentenceScore, TextFeatures
+from ._types import ScanResult, SentenceScore, TextFeatures, ParagraphScore
 from .features import (
     extract_features,
     _split_sentences,
@@ -222,3 +222,29 @@ def _generate_flags(features: TextFeatures, prob: float) -> list[str]:
         )
 
     return flags
+
+
+def detect_paragraphs(text: str) -> list[ParagraphScore]:
+    """Analyze each paragraph independently for mixed content detection."""
+    raw_paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    if not raw_paragraphs:
+        return []
+
+    scores: list[ParagraphScore] = []
+    for idx, para in enumerate(raw_paragraphs):
+        words = _tokenize(para)
+        wc = len(words)
+        if wc == 0:
+            continue
+        features = extract_features(para)
+        prob = _compute_probability(features)
+        scores.append(
+            ParagraphScore(
+                text=para,
+                index=idx,
+                ai_probability=round(prob, 4),
+                verdict=_verdict(prob),
+                word_count=wc,
+            )
+        )
+    return scores

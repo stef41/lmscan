@@ -47,6 +47,17 @@ class ModelMatch:
 
 
 @dataclass
+class ParagraphScore:
+    """AI probability for a single paragraph."""
+
+    text: str
+    index: int
+    ai_probability: float
+    verdict: str
+    word_count: int
+
+
+@dataclass
 class ScanResult:
     """Complete scan result for a piece of text."""
 
