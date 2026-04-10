@@ -1,0 +1,8 @@
+- id: lmscan
+  name: lmscan
+  description: Detect AI-generated text
+  entry: lmscan
+  language: python
+  types: [text]
+  pass_filenames: true
+  args: ["--threshold", "0.7"]
