@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0] - 2025-07-26
+
+### Added
+- Directory batch scanning with `--dir` flag and `scan_directory()` API
+- Per-paragraph mixed content detection with `--mixed` flag and `scan_mixed()` API
+- Calibration API: `calibrate()` and `find_optimal_threshold()` for custom datasets
+- Self-contained HTML reports with dark theme gauge (`--format html`)
+- Model fingerprints for Qwen, DeepSeek, Cohere, Phi (9 models total)
+- 150 tests (up from 96)
+
 ## [0.1.0] - 2025-04-10
 
 ### Added
