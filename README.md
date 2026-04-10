@@ -3,9 +3,11 @@
 **Detect AI-generated text. Fingerprint which LLM wrote it. Open-source GPTZero alternative.**
 
 [![PyPI](https://img.shields.io/pypi/v/lmscan?color=blue)](https://pypi.org/project/lmscan/)
+[![Downloads](https://img.shields.io/pypi/dm/lmscan)](https://pypi.org/project/lmscan/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/lmscan)](https://pypi.org/project/lmscan/)
-[![Tests](https://img.shields.io/badge/tests-96%20passed-brightgreen)]()
+[![CI](https://github.com/stef41/lmscan/actions/workflows/ci.yml/badge.svg)](https://github.com/stef41/lmscan/actions)
+[![Tests](https://img.shields.io/badge/tests-150%20passed-brightgreen)]()
 
 > GPTZero charges $15/month. Originality.ai charges per scan. Turnitin locks you into institutional contracts.
 >
