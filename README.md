@@ -212,7 +212,7 @@ A: Each LLM family has characteristic vocabulary biases. GPT-4 loves "delve" and
 ## See Also
 
 - [reverse-SynthID](https://github.com/aloshdenny/reverse-SynthID) — Reverse-engineering Google's image watermarking
-- [vibesafe](https://github.com/stef41/vibesafe) — AI code safety scanner
+- [vibesafe](https://github.com/stef41/vibesafex) — AI code safety scanner
 - [injectionguard](https://github.com/stef41/injectionguard) — Prompt injection detection
 - [vibescore](https://github.com/stef41/vibescore) — Grade your vibe-coded project
 
