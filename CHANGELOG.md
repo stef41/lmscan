@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0] - 2026-04-10
+
+### Added
+- Multilingual AI text detection: French, Spanish, German, Portuguese, CJK handling
+- Language auto-detection with `--language auto` (default) or manual override
+- Language-specific slop word dictionaries and transition word lists
+- Benchmark module: `run_benchmark()`, `BenchmarkSample`, `BenchmarkResult`
+- Benchmark accuracy report with per-source breakdown and confusion matrix
+- Web UI via Streamlit: `lmscan --web` or `pip install lmscan[web]`
+- Interactive text analysis, feature visualization, model attribution chart
+- VS Code extension scaffolding with inline highlighting, status bar, right-click scan
+- Pre-commit hook integration (`.pre-commit-hooks.yaml` already included)
+- 193 tests (up from 150)
+
 ## [0.2.0] - 2025-07-26
 
 ### Added

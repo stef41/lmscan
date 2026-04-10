@@ -17,9 +17,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--format", choices=["text", "json", "html"], default="text", help="Output format")
     parser.add_argument("--sentences", action="store_true", help="Show per-sentence analysis")
     parser.add_argument("--threshold", type=float, default=0.0, help="Exit with code 1 if AI probability exceeds threshold (for CI)")
+    parser.add_argument("--language", choices=["en", "fr", "es", "de", "pt", "auto"], default="auto", help="Text language (default: auto-detect)")
+    parser.add_argument("--web", action="store_true", help="Launch web UI (requires: pip install lmscan[web])")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     args = parser.parse_args(argv)
+
+    # ── Web UI mode ───────────────────────────────────────────────────────
+    if args.web:
+        from .web import launch, check_streamlit
+
+        if not check_streamlit():
+            print("Error: streamlit is required. Install with: pip install lmscan[web]", file=sys.stderr)
+            return 1
+        launch()
+        return 0
 
     # ── Directory batch mode ──────────────────────────────────────────────
     if args.dir:

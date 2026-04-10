@@ -1,0 +1,100 @@
+{
+  "name": "lmscan",
+  "displayName": "lmscan — AI Text Detector",
+  "description": "Detect AI-generated text and fingerprint which LLM wrote it",
+  "version": "0.1.0",
+  "publisher": "stef41",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stef41/lmscan"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "ai-detection",
+    "gpt",
+    "chatgpt",
+    "claude",
+    "text-forensics",
+    "lmscan"
+  ],
+  "activationEvents": [
+    "onLanguage:plaintext",
+    "onLanguage:markdown"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "lmscan.scanDocument",
+        "title": "Scan with lmscan",
+        "category": "lmscan"
+      },
+      {
+        "command": "lmscan.scanSelection",
+        "title": "Scan Selection with lmscan",
+        "category": "lmscan"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "lmscan.scanDocument",
+          "group": "lmscan",
+          "when": "editorHasSelection == false"
+        },
+        {
+          "command": "lmscan.scanSelection",
+          "group": "lmscan",
+          "when": "editorHasSelection"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "lmscan",
+      "properties": {
+        "lmscan.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Path to Python interpreter with lmscan installed"
+        },
+        "lmscan.threshold": {
+          "type": "number",
+          "default": 0.65,
+          "description": "Minimum probability to flag as AI-generated"
+        },
+        "lmscan.autoScan": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically scan documents on save"
+        },
+        "lmscan.languages": {
+          "type": "array",
+          "default": [
+            "plaintext",
+            "markdown"
+          ],
+          "description": "File types to automatically scan"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
