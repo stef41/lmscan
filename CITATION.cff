@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use lmscan in your research, please cite it as below."
+type: software
+title: "lmscan"
+abstract: "Open-source AI text forensics — detect AI-generated text and fingerprint which LLM wrote it using 12 statistical features and 9 model signatures."
+authors:
+  - family-names: "B"
+    given-names: "Zacharie"
+    alias: "stef41"
+version: "0.3.0"
+date-released: "2026-04-11"
+license: Apache-2.0
+url: "https://github.com/stef41/lmscan"
+repository-code: "https://github.com/stef41/lmscan"
+keywords:
+  - ai-detection
+  - text-forensics
+  - llm-fingerprinting
+  - natural-language-processing
+  - python
