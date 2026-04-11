@@ -37,7 +37,7 @@ def scan_directory(
                     result = scan_file(fpath, encoding=encoding)
                     relpath = os.path.relpath(fpath, root)
                     results.append((relpath, result))
-                except Exception:
+                except (OSError, UnicodeDecodeError):
                     continue
     return results
 
