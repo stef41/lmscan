@@ -119,9 +119,11 @@ def launch() -> None:
         # Slop phrases
         slop = identify_slop_phrases(text)
         if slop:
-            st.subheader(f"AI Slop Phrases Detected ({len(slop)})")
-            for phrase, positions in slop.items():
-                st.markdown(f"- **\"{phrase}\"** (×{len(positions)})")
+            from collections import Counter
+            phrase_counts = Counter(phrase for phrase, _pos in slop)
+            st.subheader(f"AI Slop Phrases Detected ({len(phrase_counts)})")
+            for phrase, count in phrase_counts.most_common():
+                st.markdown(f"- **\"{phrase}\"** (×{count})")
 
         # Per-sentence analysis
         if show_sentences and result.sentence_scores:

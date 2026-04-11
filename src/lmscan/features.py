@@ -53,6 +53,12 @@ _ABBREVIATIONS: set[str] = {
     "i.e", "e.g", "cf",
 }
 
+# Pre-compiled patterns — avoids ~250 re.compile() calls per scan()
+_ABBREVIATION_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(rf"\b({re.escape(abbr)})\.", re.IGNORECASE)
+    for abbr in _ABBREVIATIONS
+]
+
 
 # ── Tokenisation helpers ──────────────────────────────────────────────────────
 
@@ -77,9 +83,7 @@ def _split_sentences(text: str) -> list[str]:
     # Protect abbreviations: replace "Dr." → "Dr\x1f" temporarily
     sentinel = "\x1f"
     protected = text
-    for abbr in _ABBREVIATIONS:
-        # Match abbreviation followed by period (case-insensitive)
-        pattern = re.compile(rf"\b({re.escape(abbr)})\.", re.IGNORECASE)
+    for pattern in _ABBREVIATION_PATTERNS:
         protected = pattern.sub(lambda m: m.group(1) + sentinel, protected)
 
     # Split on sentence-ending punctuation followed by space or end-of-string
