@@ -1,0 +1,180 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+
+\title{lmscan: Statistical Feature Analysis for AI-Generated Text Detection and LLM Fingerprinting}
+\author{Zacharie B \\
+  \texttt{github.com/stef41/lmscan} \\
+  Independent Researcher}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present \textsc{lmscan}, an open-source Python library for detecting AI-generated text and identifying the source large language model (LLM) using statistical feature analysis. Unlike transformer-based classifiers, \textsc{lmscan} computes 12 interpretable statistical features including burstiness, Zipf distribution deviation, hapax legomena ratio, and vocabulary richness. For model attribution, it scores text against 9 LLM family signatures based on characteristic vocabulary and structural patterns. The system operates in under 50ms with zero external dependencies, supports 5 languages, and provides full transparency into detection reasoning. We describe the feature extraction pipeline, the fingerprinting methodology, and discuss the tradeoffs between statistical and neural approaches to AI text detection.
+\end{abstract}
+
+\section{Introduction}
+
+The widespread deployment of large language models (LLMs) has created an urgent need for AI text detection tools. Existing solutions---GPTZero, Originality.ai, Turnitin's AI module---are either closed-source, paid, or both. When these systems flag text as AI-generated, users cannot inspect why, leading to accountability concerns especially in educational settings \cite{liang2023gpt}.
+
+We present an alternative approach: purely statistical feature analysis. Rather than training a classifier on labeled examples, \textsc{lmscan} computes a set of interpretable features that capture known distributional differences between human and machine-generated text. The key advantages are:
+
+\begin{enumerate}
+    \item \textbf{Transparency}: Every detection decision can be explained through individual feature contributions.
+    \item \textbf{No training data}: The system does not require labeled examples to function (though calibration can improve domain-specific accuracy).
+    \item \textbf{Zero infrastructure}: No GPU, API keys, or internet connection required.
+    \item \textbf{Speed}: Full analysis in under 50 milliseconds.
+\end{enumerate}
+
+The obvious tradeoff is accuracy on adversarial text. A statistical approach will not match a fine-tuned transformer classifier on heavily paraphrased AI output. We argue, however, that for many practical use cases---screening student essays, auditing content pipelines, fingerprinting PR descriptions---the statistical approach offers a better balance of interpretability, cost, and reliability.
+
+\section{Related Work}
+
+Prior work on AI text detection falls into three categories:
+
+\textbf{Watermarking}: Kirchenbauer et al.\ \cite{kirchenbauer2023watermark} propose embedding statistical signals during generation. This requires control over the generation process and does not work retroactively.
+
+\textbf{Classifier-based}: DetectGPT \cite{mitchell2023detectgpt} uses perturbation-based likelihood comparisons. GPTZero and similar services train transformer classifiers on human/AI text pairs. These achieve high accuracy but are opaque and require substantial compute.
+
+\textbf{Statistical}: Gehrmann et al.\ \cite{gehrmann2019gltr} analyze token-level probabilities using GLTR. Our work extends the statistical approach with a broader feature set and adds model attribution capabilities.
+
+\section{Feature Extraction}
+
+\textsc{lmscan} computes 12 features from input text. Each captures a different aspect of the distributional difference between human and LLM-generated text.
+
+\subsection{Burstiness}
+
+Human writing exhibits ``burstiness''---alternation between short, simple sentences and long, complex ones. LLM output tends toward unnaturally consistent sentence complexity. We measure burstiness as the coefficient of variation of per-sentence information entropy:
+
+\begin{equation}
+    B = \frac{\sigma(H_1, H_2, \ldots, H_n)}{\mu(H_1, H_2, \ldots, H_n)}
+\end{equation}
+
+where $H_i = -\sum_{w \in s_i} p(w) \log p(w)$ is the Shannon entropy of sentence $s_i$ computed over word frequencies within a sliding window.
+
+\subsection{Zipf Distribution Deviation}
+
+Natural language word frequencies follow Zipf's law: the $k$-th most common word appears with frequency proportional to $1/k^\alpha$, where $\alpha \approx 1$. LLM-generated text deviates from this distribution. We compute the Kolmogorov-Smirnov statistic between the observed rank-frequency distribution and the ideal Zipf curve:
+
+\begin{equation}
+    D_{KS} = \sup_x |F_{observed}(x) - F_{Zipf}(x)|
+\end{equation}
+
+\subsection{Hapax Legomena Ratio}
+
+The proportion of words appearing exactly once (hapax legomena) in a text. Human writers use more unique, one-off words; LLMs tend to reuse a constrained vocabulary:
+
+\begin{equation}
+    R_{hapax} = \frac{|\{w : \text{count}(w) = 1\}|}{|V|}
+\end{equation}
+
+where $V$ is the vocabulary of the text.
+
+\subsection{Vocabulary Richness (MATTR)}
+
+Moving-Average Type-Token Ratio computed over sliding windows of 50 tokens. This normalizes for text length, which biases standard TTR:
+
+\begin{equation}
+    \text{MATTR} = \frac{1}{N-W+1} \sum_{i=1}^{N-W+1} \text{TTR}(w_i, \ldots, w_{i+W-1})
+\end{equation}
+
+\subsection{Additional Features}
+
+\begin{itemize}
+    \item \textbf{Sentence length variance}: Standard deviation of sentence lengths (words per sentence).
+    \item \textbf{Punctuation entropy}: Shannon entropy of punctuation mark distribution.
+    \item \textbf{N-gram repetition}: Frequency of repeated character-level and word-level trigrams.
+    \item \textbf{Connective density}: Frequency of discourse connectives (``moreover'', ``furthermore'', ``however'').
+    \item \textbf{Hedging ratio}: Frequency of hedging phrases (``I think'', ``perhaps'', ``it seems'').
+    \item \textbf{Slop-word density}: Frequency of known LLM vocabulary markers (``delve'', ``tapestry'', ``paradigm'').
+    \item \textbf{Paragraph structure}: Variance in paragraph length and regularity of paragraph breaks.
+    \item \textbf{Overall entropy}: Character-level Shannon entropy of the full text.
+\end{itemize}
+
+\section{LLM Fingerprinting}
+
+Beyond binary detection, \textsc{lmscan} identifies which LLM family likely generated a text. Each model has characteristic vocabulary and structural patterns:
+
+\begin{table}[h]
+\centering
+\caption{Example vocabulary markers by model family}
+\begin{tabular}{ll}
+\toprule
+\textbf{Model} & \textbf{Characteristic markers} \\
+\midrule
+GPT-4 & delve, tapestry, multifaceted, nuanced \\
+Claude & I think, it's worth noting, I should mention \\
+Llama & comprehensive, crucial, innovative, robust \\
+Gemini & essentially, noteworthy, groundbreaking \\
+Mistral & notably, fundamental, integral \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The fingerprinting module scores text against 9 model profiles (GPT-4, Claude, Gemini, Llama, Mistral, Qwen, DeepSeek, Cohere, Phi). Each profile consists of weighted vocabulary markers, hedging patterns, and structural signatures. The attribution confidence is computed as the normalized score differential between the best-matching and second-best-matching profiles.
+
+\section{Implementation}
+
+\textsc{lmscan} is implemented in pure Python with zero external dependencies. The architecture consists of:
+
+\begin{itemize}
+    \item \texttt{features.py}: 12 feature extractors
+    \item \texttt{detector.py}: Weighted sigmoid classifier combining features into an AI probability score
+    \item \texttt{fingerprint.py}: 9 model profile matchers
+    \item \texttt{calibration.py}: Domain-specific threshold tuning via logistic regression on user-provided labeled data
+    \item \texttt{languages.py}: Multilingual support (English, French, Spanish, German, Portuguese, CJK auto-detection)
+\end{itemize}
+
+The full analysis pipeline runs in under 50ms for typical-length texts (500--2000 words) on a single CPU core. The library is distributed via PyPI (\texttt{pip install lmscan}) and has 193 tests with CI on Python 3.9--3.13.
+
+\section{Limitations and Future Work}
+
+The statistical approach has clear limitations:
+
+\begin{enumerate}
+    \item \textbf{Adversarial robustness}: Paraphrasing or post-editing can defeat statistical detection.
+    \item \textbf{Short texts}: Features are less reliable on texts under 100 words.
+    \item \textbf{Domain sensitivity}: Thresholds tuned for academic text may not generalize to creative writing.
+    \item \textbf{Model evolution}: As LLMs improve, their outputs become more human-like, reducing feature discriminability.
+\end{enumerate}
+
+Future directions include ensemble methods combining statistical and lightweight neural features, active learning for domain adaptation, and temporal analysis of how model fingerprints evolve across versions.
+
+\section{Conclusion}
+
+\textsc{lmscan} demonstrates that statistical feature analysis provides a viable, interpretable, and efficient approach to AI text detection and model attribution. While it does not match transformer-based classifiers on adversarial benchmarks, it offers unique advantages in transparency, cost, and deployment simplicity. The open-source release enables researchers and practitioners to inspect, extend, and calibrate the system for their specific needs.
+
+\bibliographystyle{plain}
+\begin{thebibliography}{9}
+
+\bibitem{liang2023gpt}
+Liang, W., et al.
+\newblock GPT detectors are biased against non-native English writers.
+\newblock \emph{Patterns}, 4(7), 2023.
+
+\bibitem{kirchenbauer2023watermark}
+Kirchenbauer, J., et al.
+\newblock A watermark for large language models.
+\newblock \emph{ICML}, 2023.
+
+\bibitem{mitchell2023detectgpt}
+Mitchell, E., et al.
+\newblock DetectGPT: Zero-shot machine-generated text detection using probability curvature.
+\newblock \emph{ICML}, 2023.
+
+\bibitem{gehrmann2019gltr}
+Gehrmann, S., et al.
+\newblock GLTR: Statistical detection and visualization of generated text.
+\newblock \emph{ACL Demo}, 2019.
+
+\end{thebibliography}
+
+\end{document}
