@@ -398,6 +398,150 @@ def slop_word_score(text: str) -> float:
     return hits / total
 
 
+# ── v0.4 Advanced features ────────────────────────────────────────────────────
+
+_PASSIVE_PATTERN = re.compile(
+    r"\b(?:is|was|were|are|been|being|be|gets|got|gotten)\s+"
+    r"(?:\w+\s+)*?"
+    r"(?:\w+(?:ed|en|wn|nt|ht|pt|xt|lt|ft|ct|rn|rt))\b",
+    re.IGNORECASE,
+)
+
+_FUNCTION_WORDS: set[str] = {
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did", "will", "would", "shall",
+    "should", "may", "might", "must", "can", "could",
+    "i", "me", "my", "we", "us", "our", "you", "your", "he", "she",
+    "him", "her", "his", "it", "its", "they", "them", "their",
+    "this", "that", "these", "those", "which", "who", "whom", "whose",
+    "what", "where", "when", "why", "how",
+    "in", "on", "at", "to", "for", "of", "with", "by", "from", "up",
+    "about", "into", "through", "during", "before", "after", "above",
+    "below", "between", "under", "over", "out",
+    "and", "but", "or", "nor", "not", "so", "yet", "both", "either",
+    "neither", "if", "then", "than", "as", "while", "although", "because",
+    "since", "until", "unless", "whether", "though",
+    "very", "also", "just", "even", "still", "already", "too", "quite",
+}
+
+_HEDGING_PHRASES: list[str] = [
+    "it is important to note", "it is worth noting", "it's important to note",
+    "it's worth noting", "it should be noted", "one could argue",
+    "it is essential to", "it is crucial to", "it is worth mentioning",
+    "it bears mentioning", "it must be emphasized", "it cannot be overstated",
+    "needless to say", "it goes without saying",
+    "in this context", "in this regard", "to this end",
+    "from a broader perspective", "taking into account",
+    "it is important to consider", "it is imperative to",
+]
+
+_CONJUNCTION_STARTERS: set[str] = {
+    "furthermore", "moreover", "additionally", "consequently", "nevertheless",
+    "however", "therefore", "thus", "hence", "accordingly", "similarly",
+    "meanwhile", "subsequently", "conversely", "alternatively",
+    "specifically", "notably", "importantly", "significantly",
+    "ultimately", "essentially", "fundamentally", "interestingly",
+}
+
+
+def passive_voice_ratio(text: str) -> float:
+    """Estimate the fraction of sentences using passive voice constructions."""
+    sentences = _split_sentences(text)
+    if not sentences:
+        return 0.0
+    passive_count = sum(1 for s in sentences if _PASSIVE_PATTERN.search(s))
+    return passive_count / len(sentences)
+
+
+def sentence_opening_diversity(text: str) -> float:
+    """Measure how diverse sentence openings are (0=all same, 1=all unique).
+
+    AI text tends to start sentences with "The", "This", "It" repetitively.
+    Returns the ratio of unique first-word-pairs to total sentences.
+    """
+    sentences = _split_sentences(text)
+    if len(sentences) < 3:
+        return 1.0
+    # Use first two words as the opening pattern
+    openings: list[str] = []
+    for s in sentences:
+        words = _tokenize(s)
+        if len(words) >= 2:
+            openings.append(f"{words[0]} {words[1]}")
+        elif words:
+            openings.append(words[0])
+    if not openings:
+        return 1.0
+    unique = len(set(openings))
+    return unique / len(openings)
+
+
+def lexical_density(text: str) -> float:
+    """Ratio of content words to total words (0-1).
+
+    AI-generated text often has lower lexical density due to filler
+    and function word padding.
+    """
+    words = _tokenize(text)
+    if not words:
+        return 0.0
+    content_words = sum(1 for w in words if w not in _FUNCTION_WORDS)
+    return content_words / len(words)
+
+
+def char_entropy(text: str) -> float:
+    """Shannon entropy at the character level (more robust for short text)."""
+    if not text:
+        return 0.0
+    # Only count printable characters
+    chars = [c for c in text.lower() if c.isprintable()]
+    if not chars:
+        return 0.0
+    counts = Counter(chars)
+    n = len(chars)
+    entropy = 0.0
+    for c in counts.values():
+        p = c / n
+        if p > 0:
+            entropy -= p * math.log2(p)
+    return entropy
+
+
+def hedging_density(text: str) -> float:
+    """Count hedging/qualifying phrases as fraction of total words."""
+    words = _tokenize(text)
+    if not words:
+        return 0.0
+    text_lower = text.lower()
+    total = len(words)
+    hits = 0
+    for phrase in _HEDGING_PHRASES:
+        start = 0
+        while True:
+            idx = text_lower.find(phrase, start)
+            if idx == -1:
+                break
+            hits += len(phrase.split())
+            start = idx + 1
+    return hits / total
+
+
+def conjunction_start_ratio(text: str) -> float:
+    """Fraction of sentences beginning with a conjunction/transition adverb.
+
+    AI text heavily opens sentences with "Furthermore,", "Moreover,", etc.
+    """
+    sentences = _split_sentences(text)
+    if not sentences:
+        return 0.0
+    count = 0
+    for s in sentences:
+        words = _tokenize(s)
+        if words and words[0] in _CONJUNCTION_STARTERS:
+            count += 1
+    return count / len(sentences)
+
+
 # ── Master extraction function ────────────────────────────────────────────────
 
 def extract_features(text: str) -> TextFeatures:
@@ -425,6 +569,12 @@ def extract_features(text: str) -> TextFeatures:
         transition_word_ratio=round(transition_word_ratio(text), 6),
         slop_word_score=round(slop_word_score(text), 6),
         punctuation_entropy=round(punctuation_entropy(text), 6),
+        passive_voice_ratio=round(passive_voice_ratio(text), 6),
+        sentence_opening_diversity=round(sentence_opening_diversity(text), 6),
+        lexical_density=round(lexical_density(text), 6),
+        char_entropy=round(char_entropy(text), 6),
+        hedging_density=round(hedging_density(text), 6),
+        conjunction_start_ratio=round(conjunction_start_ratio(text), 6),
         avg_word_length=round(avg_wl, 6),
         avg_sentence_length=round(avg_sl, 6),
         paragraph_count=len(paragraphs),

@@ -19,6 +19,13 @@ class TextFeatures:
     transition_word_ratio: float = 0.0
     slop_word_score: float = 0.0
     punctuation_entropy: float = 0.0
+    # v0.4 advanced features
+    passive_voice_ratio: float = 0.0
+    sentence_opening_diversity: float = 0.0
+    lexical_density: float = 0.0
+    char_entropy: float = 0.0
+    hedging_density: float = 0.0
+    conjunction_start_ratio: float = 0.0
     avg_word_length: float = 0.0
     avg_sentence_length: float = 0.0
     paragraph_count: int = 0
