@@ -2,7 +2,7 @@
   "name": "lmscan",
   "displayName": "lmscan — AI Text Detector",
   "description": "Detect AI-generated text and fingerprint which LLM wrote it",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "ZachBg",
   "license": "Apache-2.0",
   "icon": "icon.png",

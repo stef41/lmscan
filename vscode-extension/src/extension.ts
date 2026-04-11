@@ -224,7 +224,7 @@ async function scanText(
 
     // Output channel — full report
     outputChannel.clear();
-    outputChannel.appendLine("lmscan v0.4.0 — AI Text Forensics");
+    outputChannel.appendLine("lmscan v0.6.0 — AI Text Forensics");
     outputChannel.appendLine("═".repeat(50));
     outputChannel.appendLine(`Verdict: ${result.verdict} (${pct}% AI)`);
     outputChannel.appendLine(`Confidence: ${result.confidence}`);
