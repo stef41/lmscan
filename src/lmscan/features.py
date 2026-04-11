@@ -443,6 +443,35 @@ _CONJUNCTION_STARTERS: set[str] = {
     "ultimately", "essentially", "fundamentally", "interestingly",
 }
 
+# ── v0.6 feature data ─────────────────────────────────────────────────────────
+
+_CONTRACTION_PATTERN = re.compile(
+    r"\b(?:i'm|i'll|i've|i'd|he's|she's|it's|we're|we've|we'll|we'd|"
+    r"they're|they've|they'll|they'd|you're|you've|you'll|you'd|"
+    r"isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|couldn't|"
+    r"don't|doesn't|didn't|can't|hasn't|haven't|hadn't|"
+    r"there's|that's|what's|who's|here's|let's|"
+    r"ain't|shan't|needn't|mustn't)\b",
+    re.IGNORECASE,
+)
+
+_FIRST_PERSON_WORDS: set[str] = {"i", "me", "my", "mine", "myself", "we", "us", "our", "ours", "ourselves"}
+
+_LIST_PATTERN = re.compile(
+    r"(?:^|\n)\s*(?:"
+    r"\d+[.)]\s|"         # 1. or 1)
+    r"[-*•]\s|"           # - or * or •
+    r"[a-z][.)]\s|"       # a. or a)
+    r"step\s+\d|"         # Step 1
+    r"first(?:ly)?[,:]|"  # First, / Firstly:
+    r"second(?:ly)?[,:]|"
+    r"third(?:ly)?[,:]|"
+    r"finally[,:]|"
+    r"in\s+conclusion[,:]"
+    r")",
+    re.IGNORECASE | re.MULTILINE,
+)
+
 
 def passive_voice_ratio(text: str) -> float:
     """Estimate the fraction of sentences using passive voice constructions."""
@@ -542,6 +571,90 @@ def conjunction_start_ratio(text: str) -> float:
     return count / len(sentences)
 
 
+# ── v0.6 New features ─────────────────────────────────────────────────────────
+
+def contraction_rate(text: str) -> float:
+    """Ratio of contractions to total words.
+
+    Humans naturally use contractions (don't, can't, it's).
+    AI-generated formal text avoids them almost entirely.
+    Low contraction rate → AI signal.
+    """
+    words = _tokenize(text)
+    if not words:
+        return 0.0
+    matches = _CONTRACTION_PATTERN.findall(text)
+    return len(matches) / len(words)
+
+
+def first_person_ratio(text: str) -> float:
+    """Ratio of first-person pronouns to total words.
+
+    AI text in expository mode rarely uses first-person pronouns.
+    Human text naturally includes "I think", "my experience", etc.
+    """
+    words = _tokenize(text)
+    if not words:
+        return 0.0
+    count = sum(1 for w in words if w in _FIRST_PERSON_WORDS)
+    return count / len(words)
+
+
+def question_ratio(text: str) -> float:
+    """Fraction of sentences that are questions.
+
+    Humans ask rhetorical questions in writing. AI rarely does in
+    expository text (but over-does it in conversational text).
+    """
+    sentences = _split_sentences(text)
+    if not sentences:
+        return 0.0
+    questions = sum(1 for s in sentences if s.rstrip().endswith("?"))
+    return questions / len(sentences)
+
+
+def list_pattern_density(text: str) -> float:
+    """Density of list/enumeration patterns per line.
+
+    AI text overuses numbered lists, bullet points, and ordinal
+    transitions like "First, ... Second, ... Third, ..."
+    """
+    lines = text.split("\n")
+    if not lines:
+        return 0.0
+    matches = _LIST_PATTERN.findall(text)
+    return len(matches) / len(lines)
+
+
+def long_ngram_repetition(text: str) -> float:
+    """Fraction of 4-grams and 5-grams that repeat.
+
+    AI text has more long-range repetitive patterns due to
+    template-like generation. Human text rarely repeats 4+ word
+    sequences unless quoting.
+    """
+    words = _tokenize(text)
+    if len(words) < 6:
+        return 0.0
+
+    repeated = 0
+    total = 0
+
+    # 4-grams
+    fourgrams = [tuple(words[i:i+4]) for i in range(len(words) - 3)]
+    fg_counts = Counter(fourgrams)
+    total += len(fg_counts)
+    repeated += sum(1 for c in fg_counts.values() if c > 1)
+
+    # 5-grams
+    fivegrams = [tuple(words[i:i+5]) for i in range(len(words) - 4)]
+    fvg_counts = Counter(fivegrams)
+    total += len(fvg_counts)
+    repeated += sum(1 for c in fvg_counts.values() if c > 1)
+
+    return repeated / total if total else 0.0
+
+
 # ── Master extraction function ────────────────────────────────────────────────
 
 def extract_features(text: str) -> TextFeatures:
@@ -575,6 +688,11 @@ def extract_features(text: str) -> TextFeatures:
         char_entropy=round(char_entropy(text), 6),
         hedging_density=round(hedging_density(text), 6),
         conjunction_start_ratio=round(conjunction_start_ratio(text), 6),
+        contraction_rate=round(contraction_rate(text), 6),
+        first_person_ratio=round(first_person_ratio(text), 6),
+        question_ratio=round(question_ratio(text), 6),
+        list_pattern_density=round(list_pattern_density(text), 6),
+        long_ngram_repetition=round(long_ngram_repetition(text), 6),
         avg_word_length=round(avg_wl, 6),
         avg_sentence_length=round(avg_sl, 6),
         paragraph_count=len(paragraphs),

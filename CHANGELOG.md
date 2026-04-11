@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0] - 2026-04-11
+
+### Added
+- Ensemble detection: combines signal-based detector + logistic regression classifier + character n-gram perplexity — three orthogonal scoring systems
+- 5 new features: contraction rate, first-person pronoun ratio, question ratio, list pattern density, long n-gram repetition (4/5-grams)
+- Perplexity model wired into main detection pipeline (was disconnected)
+- Classifier upgraded from 12 to 23 features with re-estimated weights
+- Punctuation style profiling for model fingerprinting (em-dash, semicolon, colon, comma density per model)
+- Agreement bonus in ensemble: when all three systems agree, confidence is boosted
+- Report now shows 18 analyzed features with signal indicators (up from 10)
+- 12 new flag conditions for v0.6 features (contractions, first-person, lists, n-grams, questions)
+- Detector expanded from 14 to 21 weighted signals
+- 386 tests
+
+### Improved
+- AI text detection accuracy: GPT-style text now scores 88% (was 82%)
+- Human formal text correctly classified at 12% (much improved)
+- Contraction rate is highly discriminative (0.062 human vs 0.000 AI)
+- First-person pronouns add orthogonal human signal
+
 ## [0.5.0] - 2026-04-10
 
 ### Added

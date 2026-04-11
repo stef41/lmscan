@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import re
+import string
 from collections import Counter
 
 from ._types import ModelMatch
@@ -214,6 +216,139 @@ _MODEL_STRUCTURE: dict[str, dict[str, float]] = {
     },
 }
 
+# ── Punctuation and formatting style profiles per model ────────────────────────
+# Each model has characteristic punctuation patterns:
+# - em_dash_rate: usage of em-dashes (—) per 1000 chars
+# - semicolon_rate: usage of semicolons per 1000 chars
+# - colon_rate: usage of colons per 1000 chars
+# - exclamation_rate: usage of exclamation marks per 1000 chars
+# - parenthetical_rate: usage of parentheses per 1000 chars
+# - comma_density: commas per sentence (avg)
+
+_PUNCTUATION_PROFILES: dict[str, dict[str, float]] = {
+    "GPT-4 / ChatGPT": {
+        "em_dash_rate": 1.8,     # moderate em-dash usage
+        "semicolon_rate": 0.8,
+        "colon_rate": 1.5,
+        "exclamation_rate": 0.3,
+        "parenthetical_rate": 1.2,
+        "comma_density": 2.8,
+    },
+    "Claude (Anthropic)": {
+        "em_dash_rate": 3.2,     # Claude loves em-dashes
+        "semicolon_rate": 0.5,
+        "colon_rate": 2.0,
+        "exclamation_rate": 0.4,
+        "parenthetical_rate": 1.8,
+        "comma_density": 2.5,
+    },
+    "Gemini (Google)": {
+        "em_dash_rate": 0.5,
+        "semicolon_rate": 0.3,
+        "colon_rate": 2.5,
+        "exclamation_rate": 0.5,
+        "parenthetical_rate": 0.8,
+        "comma_density": 2.2,
+    },
+    "Llama / Meta": {
+        "em_dash_rate": 0.8,
+        "semicolon_rate": 0.4,
+        "colon_rate": 1.8,
+        "exclamation_rate": 1.0,
+        "parenthetical_rate": 0.6,
+        "comma_density": 2.0,
+    },
+    "Mistral / Mixtral": {
+        "em_dash_rate": 1.2,
+        "semicolon_rate": 1.5,    # Mistral uses more semicolons
+        "colon_rate": 1.2,
+        "exclamation_rate": 0.2,
+        "parenthetical_rate": 0.8,
+        "comma_density": 3.0,
+    },
+    "Qwen / Qwen2": {
+        "em_dash_rate": 0.6,
+        "semicolon_rate": 0.6,
+        "colon_rate": 1.5,
+        "exclamation_rate": 0.3,
+        "parenthetical_rate": 1.0,
+        "comma_density": 2.6,
+    },
+    "DeepSeek": {
+        "em_dash_rate": 0.4,
+        "semicolon_rate": 0.5,
+        "colon_rate": 2.2,
+        "exclamation_rate": 0.2,
+        "parenthetical_rate": 1.5,
+        "comma_density": 2.4,
+    },
+    "Cohere / Command R": {
+        "em_dash_rate": 2.0,
+        "semicolon_rate": 0.6,
+        "colon_rate": 1.8,
+        "exclamation_rate": 0.5,
+        "parenthetical_rate": 1.0,
+        "comma_density": 2.3,
+    },
+    "Phi / Phi-3": {
+        "em_dash_rate": 0.3,
+        "semicolon_rate": 0.3,
+        "colon_rate": 1.0,
+        "exclamation_rate": 0.4,
+        "parenthetical_rate": 0.5,
+        "comma_density": 1.8,
+    },
+}
+
+
+def _punctuation_style_score(text: str, model: str) -> float:
+    """Score how well the text's punctuation style matches a model profile."""
+    profile = _PUNCTUATION_PROFILES.get(model)
+    if not profile or len(text) < 50:
+        return 0.0
+
+    from .features import _split_sentences
+
+    n_chars = len(text)
+    k = 1000.0 / max(n_chars, 1)
+
+    # Count punctuation marks
+    em_dashes = text.count("\u2014") + text.count(" -- ") + text.count(" - ")
+    semicolons = text.count(";")
+    colons = text.count(":")
+    exclamations = text.count("!")
+    parens = text.count("(") + text.count(")")
+
+    actual = {
+        "em_dash_rate": em_dashes * k,
+        "semicolon_rate": semicolons * k,
+        "colon_rate": colons * k,
+        "exclamation_rate": exclamations * k,
+        "parenthetical_rate": parens * k,
+    }
+
+    # Comma density per sentence
+    sentences = _split_sentences(text)
+    if sentences:
+        comma_count = text.count(",")
+        actual["comma_density"] = comma_count / len(sentences)
+    else:
+        actual["comma_density"] = 0.0
+
+    # Score: inverse of normalized absolute difference
+    total_match = 0.0
+    n_metrics = 0
+    for metric, expected in profile.items():
+        act = actual.get(metric, 0.0)
+        if expected > 0:
+            match = max(0.0, 1.0 - abs(act - expected) / max(expected, 0.5))
+        else:
+            match = 1.0 if act < 0.5 else 0.0
+        total_match += match
+        n_metrics += 1
+
+    return total_match / max(n_metrics, 1)
+
 
 def _structural_score(text: str, model: str) -> float:
     """Score how well the text's structure matches a model's typical patterns."""
@@ -332,6 +467,10 @@ def fingerprint(text: str) -> list[ModelMatch]:
         # Add structural pattern bonus
         struct_bonus = _structural_score(text, model)
         raw += struct_bonus * 3.0 * profile["weight"]
+
+        # Add punctuation style bonus
+        punct_bonus = _punctuation_style_score(text, model)
+        raw += punct_bonus * 2.0 * profile["weight"]
 
         raw_scores[model] = raw
         marker_counts[model] = total_markers

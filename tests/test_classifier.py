@@ -97,7 +97,7 @@ class TestFeatureExtraction:
     def test_vector_length(self):
         features = extract_features("Hello world, this is a test.")
         vec = _extract_vector(features)
-        assert len(vec) == 12
+        assert len(vec) == len(_FEATURE_NAMES)
 
     def test_vector_matches_names(self):
         features = extract_features("some text here for testing purposes.")
@@ -114,13 +114,13 @@ class TestFeatureExtraction:
 
 class TestParameterConsistency:
     def test_means_length(self):
-        assert len(_MEANS) == 12
+        assert len(_MEANS) == len(_FEATURE_NAMES)
 
     def test_stds_length(self):
-        assert len(_STDS) == 12
+        assert len(_STDS) == len(_FEATURE_NAMES)
 
     def test_weights_length(self):
-        assert len(_WEIGHTS) == 12
+        assert len(_WEIGHTS) == len(_FEATURE_NAMES)
 
     def test_stds_positive(self):
         for s in _STDS:
@@ -146,7 +146,7 @@ class TestClassify:
     def test_has_feature_contributions(self):
         features = extract_features(HUMAN_TEXT)
         result = classify(features)
-        assert len(result.feature_contributions) == 12
+        assert len(result.feature_contributions) == len(_FEATURE_NAMES)
         for name in _FEATURE_NAMES:
             assert name in result.feature_contributions
 

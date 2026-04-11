@@ -26,6 +26,12 @@ class TextFeatures:
     char_entropy: float = 0.0
     hedging_density: float = 0.0
     conjunction_start_ratio: float = 0.0
+    # v0.6 features
+    contraction_rate: float = 0.0
+    first_person_ratio: float = 0.0
+    question_ratio: float = 0.0
+    list_pattern_density: float = 0.0
+    long_ngram_repetition: float = 0.0
     avg_word_length: float = 0.0
     avg_sentence_length: float = 0.0
     paragraph_count: int = 0

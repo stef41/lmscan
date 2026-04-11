@@ -23,6 +23,15 @@ def _signal_icon(feature: str, value: float) -> tuple[str, str]:
         "hapax_ratio":             ("low",  0.35, 0.45),
         "punctuation_entropy":     ("low",  1.5,  2.0),
         "bigram_repetition":       ("high", 0.15, 0.10),
+        # v0.5/v0.6 features
+        "passive_voice_ratio":     ("high", 0.30, 0.15),
+        "sentence_opening_diversity": ("low", 0.55, 0.70),
+        "hedging_density":         ("high", 0.02, 0.005),
+        "conjunction_start_ratio": ("high", 0.25, 0.10),
+        "contraction_rate":        ("low",  0.002, 0.01),
+        "first_person_ratio":      ("low",  0.002, 0.01),
+        "list_pattern_density":    ("high", 0.15, 0.05),
+        "long_ngram_repetition":   ("high", 0.05, 0.02),
     }
     if feature not in thresholds:
         return "\U0001f7e2", "Normal"
@@ -45,7 +54,13 @@ def _signal_icon(feature: str, value: float) -> tuple[str, str]:
 
 def _fmt_value(feature: str, value: float) -> str:
     """Format a feature value for display."""
-    if feature in ("slop_word_score", "transition_word_ratio", "bigram_repetition", "trigram_repetition"):
+    pct_features = {
+        "slop_word_score", "transition_word_ratio", "bigram_repetition",
+        "trigram_repetition", "passive_voice_ratio", "hedging_density",
+        "conjunction_start_ratio", "contraction_rate", "first_person_ratio",
+        "list_pattern_density", "long_ngram_repetition",
+    }
+    if feature in pct_features:
         return f"{value * 100:.1f}%"
     return f"{value:.2f}"
 
@@ -81,6 +96,14 @@ def format_report(result: ScanResult, *, show_sentences: bool = False) -> str:
         ("Hapax legomena ratio",    "hapax_ratio",             f.hapax_ratio),
         ("Punctuation entropy",     "punctuation_entropy",     f.punctuation_entropy),
         ("Bigram repetition",       "bigram_repetition",       f.bigram_repetition),
+        ("Passive voice ratio",     "passive_voice_ratio",     f.passive_voice_ratio),
+        ("Opening diversity",       "sentence_opening_diversity", f.sentence_opening_diversity),
+        ("Hedging density",         "hedging_density",         f.hedging_density),
+        ("Conjunction starts",      "conjunction_start_ratio", f.conjunction_start_ratio),
+        ("Contraction rate",        "contraction_rate",        f.contraction_rate),
+        ("First-person pronouns",   "first_person_ratio",      f.first_person_ratio),
+        ("List patterns",           "list_pattern_density",    f.list_pattern_density),
+        ("Long n-gram repetition",  "long_ngram_repetition",   f.long_ngram_repetition),
     ]
 
     col1, col2, col3 = 28, 10, 20
@@ -313,6 +336,14 @@ def format_html(result: ScanResult) -> str:
         ("Hapax legomena ratio",    "hapax_ratio",             f.hapax_ratio),
         ("Punctuation entropy",     "punctuation_entropy",     f.punctuation_entropy),
         ("Bigram repetition",       "bigram_repetition",       f.bigram_repetition),
+        ("Passive voice ratio",     "passive_voice_ratio",     f.passive_voice_ratio),
+        ("Opening diversity",       "sentence_opening_diversity", f.sentence_opening_diversity),
+        ("Hedging density",         "hedging_density",         f.hedging_density),
+        ("Conjunction starts",      "conjunction_start_ratio", f.conjunction_start_ratio),
+        ("Contraction rate",        "contraction_rate",        f.contraction_rate),
+        ("First-person pronouns",   "first_person_ratio",      f.first_person_ratio),
+        ("List patterns",           "list_pattern_density",    f.list_pattern_density),
+        ("Long n-gram repetition",  "long_ngram_repetition",   f.long_ngram_repetition),
     ]
 
     feature_rows = ""

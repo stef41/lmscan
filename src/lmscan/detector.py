@@ -13,7 +13,10 @@ from .features import (
     passive_voice_ratio as _passive_ratio,
     hedging_density as _hedging_density,
     conjunction_start_ratio as _conjunction_ratio,
+    contraction_rate as _contraction_rate,
+    list_pattern_density as _list_pattern,
 )
+from .perplexity import compute_perplexity
 
 # ── Signal definitions ────────────────────────────────────────────────────────
 # (direction, weight, threshold)
@@ -21,21 +24,29 @@ from .features import (
 # "high_is_ai" → values above threshold push toward AI
 
 _SIGNALS: dict[str, tuple[str, float, float]] = {
-    "burstiness":              ("low_is_ai",  0.18, 0.20),
-    "sentence_length_variance": ("low_is_ai", 0.10, 0.35),
-    "slop_word_score":         ("high_is_ai", 0.16, 0.005),
+    "burstiness":              ("low_is_ai",  0.14, 0.20),
+    "sentence_length_variance": ("low_is_ai", 0.08, 0.35),
+    "slop_word_score":         ("high_is_ai", 0.12, 0.005),
     "readability_consistency": ("low_is_ai",  0.02, 1.5),
-    "transition_word_ratio":   ("high_is_ai", 0.08, 0.01),
-    "bigram_repetition":       ("high_is_ai", 0.04, 0.08),
-    "hapax_ratio":             ("low_is_ai",  0.04, 0.50),
-    "zipf_deviation":          ("high_is_ai", 0.04, 0.12),
-    "punctuation_entropy":     ("low_is_ai",  0.04, 1.8),
-    # v0.4 advanced signals
-    "passive_voice_ratio":     ("high_is_ai", 0.08, 0.15),
-    "sentence_opening_diversity": ("low_is_ai", 0.06, 0.70),
-    "lexical_density":         ("low_is_ai",  0.04, 0.50),
-    "hedging_density":         ("high_is_ai", 0.06, 0.005),
-    "conjunction_start_ratio": ("high_is_ai", 0.06, 0.10),
+    "transition_word_ratio":   ("high_is_ai", 0.06, 0.01),
+    "bigram_repetition":       ("high_is_ai", 0.03, 0.08),
+    "hapax_ratio":             ("low_is_ai",  0.03, 0.50),
+    "zipf_deviation":          ("high_is_ai", 0.03, 0.12),
+    "punctuation_entropy":     ("low_is_ai",  0.03, 1.8),
+    # v0.5 signals
+    "passive_voice_ratio":     ("high_is_ai", 0.06, 0.15),
+    "sentence_opening_diversity": ("low_is_ai", 0.04, 0.70),
+    "lexical_density":         ("low_is_ai",  0.03, 0.50),
+    "hedging_density":         ("high_is_ai", 0.05, 0.005),
+    "conjunction_start_ratio": ("high_is_ai", 0.04, 0.10),
+    # v0.6 signals
+    "contraction_rate":        ("low_is_ai",  0.06, 0.01),
+    "first_person_ratio":      ("low_is_ai",  0.04, 0.01),
+    "list_pattern_density":    ("high_is_ai", 0.04, 0.05),
+    "long_ngram_repetition":   ("high_is_ai", 0.04, 0.02),
+    "question_ratio":          ("low_is_ai",  0.03, 0.05),
+    # trigram_repetition as additional signal
+    "trigram_repetition":      ("high_is_ai", 0.03, 0.02),
 }
 
 # Signals that require enough text structure to be reliable
@@ -60,7 +71,21 @@ def detect(text: str) -> ScanResult:
     features = extract_features(text)
 
     # ── Overall AI probability ────────────────────────────────────────────
-    ai_prob = _compute_probability(features)
+    signal_prob = _compute_probability(features)
+
+    # ── Perplexity signal (orthogonal) ────────────────────────────────────
+    ppl_result = compute_perplexity(text)
+    ppl_signal = ppl_result.ai_signal
+
+    # ── Ensemble: weighted combination of signal-based + perplexity ──────
+    # Perplexity is most reliable on longer text
+    if features.word_count >= 100:
+        ppl_weight = 0.20
+    elif features.word_count >= 40:
+        ppl_weight = 0.10
+    else:
+        ppl_weight = 0.0
+    ai_prob = (1.0 - ppl_weight) * signal_prob + ppl_weight * ppl_signal
 
     # ── Per-sentence scores ───────────────────────────────────────────────
     sentence_scores = _score_sentences(text, features)
@@ -158,6 +183,10 @@ def _score_sentences(text: str, features: TextFeatures) -> list[SentenceScore]:
         if conj > 0.5:
             flags.append("Starts with conjunction/transition adverb")
 
+        # Contraction rate
+        crate = _contraction_rate(sent)
+        local_feats["contractions"] = round(crate, 4)
+
         # Length deviation from mean
         if mean_len > 0:
             len_dev = abs(wc - mean_len) / mean_len
@@ -167,14 +196,18 @@ def _score_sentences(text: str, features: TextFeatures) -> list[SentenceScore]:
 
         # Sentence-level AI probability — more signals now
         sent_prob = 0.0
-        sent_prob += 0.25 * _sigmoid((slop - 0.01) / max(0.01, 0.01), 3.0)
-        sent_prob += 0.15 * _sigmoid((trans - 0.02) / max(0.02, 0.02), 3.0)
-        sent_prob += 0.15 * _sigmoid((passive - 0.2) / 0.3, 3.0)
-        sent_prob += 0.15 * _sigmoid((hedge - 0.01) / 0.02, 3.0)
-        sent_prob += 0.10 * _sigmoid((conj - 0.1) / 0.2, 3.0)
+        sent_prob += 0.20 * _sigmoid((slop - 0.01) / max(0.01, 0.01), 3.0)
+        sent_prob += 0.12 * _sigmoid((trans - 0.02) / max(0.02, 0.02), 3.0)
+        sent_prob += 0.12 * _sigmoid((passive - 0.2) / 0.3, 3.0)
+        sent_prob += 0.12 * _sigmoid((hedge - 0.01) / 0.02, 3.0)
+        sent_prob += 0.08 * _sigmoid((conj - 0.1) / 0.2, 3.0)
+        # No contractions → AI signal
+        sent_prob += 0.10 * _sigmoid((0.01 - crate) / 0.01, 3.0)
         # Sentences very close to mean length → slightly more AI-like
         uniformity = 1.0 - min(len_dev, 1.0)
-        sent_prob += 0.20 * _sigmoid((uniformity - 0.5) / 0.5, 2.0)
+        sent_prob += 0.16 * _sigmoid((uniformity - 0.5) / 0.5, 2.0)
+        # Clamp
+        sent_prob += 0.10 * _sigmoid((0.0 - 0.0) / 0.1, 1.0)  # base rate
         sent_prob = max(0.0, min(1.0, sent_prob))
 
         scored.append(SentenceScore(
@@ -272,6 +305,33 @@ def _generate_flags(features: TextFeatures, prob: float) -> list[str]:
         flags.append(
             f"Conjunction-heavy sentence starts ({pct:.0f}%) "
             "\u2014 AI text overuses transition adverbs"
+        )
+    if features.contraction_rate < 0.005 and features.word_count > 50:
+        flags.append(
+            "No contractions detected "
+            "\u2014 AI text avoids contractions (don't, can't, it's)"
+        )
+    if features.first_person_ratio < 0.005 and features.word_count > 50:
+        flags.append(
+            "No first-person pronouns "
+            "\u2014 AI expository text rarely uses I/we/my"
+        )
+    if features.list_pattern_density > 0.10:
+        pct = features.list_pattern_density * 100
+        flags.append(
+            f"Heavy list/enumeration patterns ({pct:.0f}%) "
+            "\u2014 AI text overuses numbered or bulleted lists"
+        )
+    if features.long_ngram_repetition > 0.03 and features.word_count > 30:
+        pct = features.long_ngram_repetition * 100
+        flags.append(
+            f"Repeated 4/5-grams ({pct:.1f}%) "
+            "\u2014 AI text has more template-like repetitive patterns"
+        )
+    if features.question_ratio < 0.02 and features.sentence_count >= 5:
+        flags.append(
+            "No questions in text "
+            "\u2014 AI expository text rarely uses rhetorical questions"
         )
 
     return flags
