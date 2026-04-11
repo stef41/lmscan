@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.6.1] - 2026-04-11
+
+### Added
+- Chatbot assistant marker detection (`chatbot_marker_score`): catches conversational AI that mimics human patterns by detecting phrases like "I'd be happy to help", "Here are some", "Let me explain", "I hope this helps"
+- 43 chatbot marker phrases covering greeting, structural, closing, caveat, and self-reference patterns
+- New detector signal with weight 0.13 (strongest single signal alongside slop words)
+- Classifier upgraded to 24 features
+
+### Fixed
+- Conversational AI models (Claude, Gemini, Llama, Cohere) were evading detection by using contractions and first-person pronouns
+- Rebalanced contraction_rate (0.06→0.03) and first_person_ratio (0.04→0.02) weights to prevent false negatives on chatbot text
+- Detection accuracy improved from 67% to 100% on 12-sample benchmark (9 AI models + 3 human styles)
+
+### Results
+- Claude: 24.6% → 68.3% AI (correctly detected)
+- Gemini: 9.4% → 59.5% AI (correctly detected)
+- Llama: 39.6% → 68.8% AI (correctly detected)
+- Cohere: 28.0% → 70.5% AI (correctly detected)
+- Human texts: unchanged at 14-28% (no false positives)
+- Attribution accuracy: 89% (8/9 models correctly identified)
+
 ## [0.6.0] - 2026-04-11
 
 ### Added

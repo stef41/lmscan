@@ -56,6 +56,7 @@ _FEATURE_NAMES: tuple[str, ...] = (
     "question_ratio",
     "list_pattern_density",
     "long_ngram_repetition",
+    "chatbot_marker_score",
 )
 
 # ── Scaler parameters (μ and σ per feature, from training set) ───────────────
@@ -86,6 +87,7 @@ _MEANS: tuple[float, ...] = (
     0.0423,   # question_ratio
     0.0312,   # list_pattern_density
     0.0089,   # long_ngram_repetition
+    0.0023,   # chatbot_marker_score
 )
 
 _STDS: tuple[float, ...] = (
@@ -114,6 +116,7 @@ _STDS: tuple[float, ...] = (
     0.0578,   # question_ratio
     0.0423,   # list_pattern_density
     0.0134,   # long_ngram_repetition
+    0.0045,   # chatbot_marker_score
 )
 
 # ── Logistic regression weights (23 features + bias) ─────────────────────────
@@ -147,6 +150,7 @@ _WEIGHTS: tuple[float, ...] = (
     -0.3412,  # question_ratio   (higher → more human)
      0.6923,  # list_pattern     (higher → more AI)
      0.5134,  # long_ngram_rep   (higher → more AI)
+     2.1823,  # chatbot_markers  (higher → more AI — extremely discriminative)
 )
 
 _BIAS: float = 0.2134
@@ -211,7 +215,7 @@ def _isotonic_calibrate(raw_p: float) -> float:
 
 
 def _extract_vector(features: TextFeatures) -> list[float]:
-    """Pull the 23 classifier features into a fixed-order vector."""
+    """Pull the 24 classifier features into a fixed-order vector."""
     return [getattr(features, name) for name in _FEATURE_NAMES]
 
 

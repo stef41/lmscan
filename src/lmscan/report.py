@@ -32,6 +32,7 @@ def _signal_icon(feature: str, value: float) -> tuple[str, str]:
         "first_person_ratio":      ("low",  0.002, 0.01),
         "list_pattern_density":    ("high", 0.15, 0.05),
         "long_ngram_repetition":   ("high", 0.05, 0.02),
+        "chatbot_marker_score":    ("high", 0.02, 0.005),
     }
     if feature not in thresholds:
         return "\U0001f7e2", "Normal"
@@ -58,7 +59,7 @@ def _fmt_value(feature: str, value: float) -> str:
         "slop_word_score", "transition_word_ratio", "bigram_repetition",
         "trigram_repetition", "passive_voice_ratio", "hedging_density",
         "conjunction_start_ratio", "contraction_rate", "first_person_ratio",
-        "list_pattern_density", "long_ngram_repetition",
+        "list_pattern_density", "long_ngram_repetition", "chatbot_marker_score",
     }
     if feature in pct_features:
         return f"{value * 100:.1f}%"
@@ -104,6 +105,7 @@ def format_report(result: ScanResult, *, show_sentences: bool = False) -> str:
         ("First-person pronouns",   "first_person_ratio",      f.first_person_ratio),
         ("List patterns",           "list_pattern_density",    f.list_pattern_density),
         ("Long n-gram repetition",  "long_ngram_repetition",   f.long_ngram_repetition),
+        ("Chatbot markers",         "chatbot_marker_score",    f.chatbot_marker_score),
     ]
 
     col1, col2, col3 = 28, 10, 20
@@ -344,6 +346,7 @@ def format_html(result: ScanResult) -> str:
         ("First-person pronouns",   "first_person_ratio",      f.first_person_ratio),
         ("List patterns",           "list_pattern_density",    f.list_pattern_density),
         ("Long n-gram repetition",  "long_ngram_repetition",   f.long_ngram_repetition),
+        ("Chatbot markers",         "chatbot_marker_score",    f.chatbot_marker_score),
     ]
 
     feature_rows = ""

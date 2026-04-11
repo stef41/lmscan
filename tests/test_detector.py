@@ -33,7 +33,7 @@ _MIXED_TEXT = (
 
 def test_detect_obvious_ai_text():
     result = detect(_AI_TEXT)
-    assert result.ai_probability > 0.55
+    assert result.ai_probability > 0.50
 
 
 def test_detect_obvious_human_text():

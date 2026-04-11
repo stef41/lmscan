@@ -15,6 +15,7 @@ from .features import (
     conjunction_start_ratio as _conjunction_ratio,
     contraction_rate as _contraction_rate,
     list_pattern_density as _list_pattern,
+    chatbot_marker_score as _chatbot_marker,
 )
 from .perplexity import compute_perplexity
 
@@ -24,9 +25,9 @@ from .perplexity import compute_perplexity
 # "high_is_ai" → values above threshold push toward AI
 
 _SIGNALS: dict[str, tuple[str, float, float]] = {
-    "burstiness":              ("low_is_ai",  0.14, 0.20),
-    "sentence_length_variance": ("low_is_ai", 0.08, 0.35),
-    "slop_word_score":         ("high_is_ai", 0.12, 0.005),
+    "burstiness":              ("low_is_ai",  0.12, 0.20),
+    "sentence_length_variance": ("low_is_ai", 0.07, 0.35),
+    "slop_word_score":         ("high_is_ai", 0.10, 0.005),
     "readability_consistency": ("low_is_ai",  0.02, 1.5),
     "transition_word_ratio":   ("high_is_ai", 0.06, 0.01),
     "bigram_repetition":       ("high_is_ai", 0.03, 0.08),
@@ -34,19 +35,19 @@ _SIGNALS: dict[str, tuple[str, float, float]] = {
     "zipf_deviation":          ("high_is_ai", 0.03, 0.12),
     "punctuation_entropy":     ("low_is_ai",  0.03, 1.8),
     # v0.5 signals
-    "passive_voice_ratio":     ("high_is_ai", 0.06, 0.15),
+    "passive_voice_ratio":     ("high_is_ai", 0.05, 0.15),
     "sentence_opening_diversity": ("low_is_ai", 0.04, 0.70),
     "lexical_density":         ("low_is_ai",  0.03, 0.50),
     "hedging_density":         ("high_is_ai", 0.05, 0.005),
     "conjunction_start_ratio": ("high_is_ai", 0.04, 0.10),
     # v0.6 signals
-    "contraction_rate":        ("low_is_ai",  0.06, 0.01),
-    "first_person_ratio":      ("low_is_ai",  0.04, 0.01),
+    "contraction_rate":        ("low_is_ai",  0.03, 0.01),   # reduced — conversational AI uses contractions
+    "first_person_ratio":      ("low_is_ai",  0.02, 0.01),   # reduced — chatbots say "I"
     "list_pattern_density":    ("high_is_ai", 0.04, 0.05),
-    "long_ngram_repetition":   ("high_is_ai", 0.04, 0.02),
-    "question_ratio":          ("low_is_ai",  0.03, 0.05),
-    # trigram_repetition as additional signal
+    "long_ngram_repetition":   ("high_is_ai", 0.03, 0.02),
+    "question_ratio":          ("low_is_ai",  0.02, 0.05),
     "trigram_repetition":      ("high_is_ai", 0.03, 0.02),
+    "chatbot_marker_score":    ("high_is_ai", 0.13, 0.005),  # strong — almost zero in human text
 }
 
 # Signals that require enough text structure to be reliable
@@ -187,6 +188,12 @@ def _score_sentences(text: str, features: TextFeatures) -> list[SentenceScore]:
         crate = _contraction_rate(sent)
         local_feats["contractions"] = round(crate, 4)
 
+        # Chatbot markers
+        chatbot = _chatbot_marker(sent)
+        local_feats["chatbot"] = round(chatbot, 4)
+        if chatbot > 0.02:
+            flags.append("AI assistant phrase detected")
+
         # Length deviation from mean
         if mean_len > 0:
             len_dev = abs(wc - mean_len) / mean_len
@@ -196,13 +203,15 @@ def _score_sentences(text: str, features: TextFeatures) -> list[SentenceScore]:
 
         # Sentence-level AI probability — more signals now
         sent_prob = 0.0
-        sent_prob += 0.20 * _sigmoid((slop - 0.01) / max(0.01, 0.01), 3.0)
-        sent_prob += 0.12 * _sigmoid((trans - 0.02) / max(0.02, 0.02), 3.0)
-        sent_prob += 0.12 * _sigmoid((passive - 0.2) / 0.3, 3.0)
-        sent_prob += 0.12 * _sigmoid((hedge - 0.01) / 0.02, 3.0)
-        sent_prob += 0.08 * _sigmoid((conj - 0.1) / 0.2, 3.0)
+        sent_prob += 0.16 * _sigmoid((slop - 0.01) / max(0.01, 0.01), 3.0)
+        sent_prob += 0.10 * _sigmoid((trans - 0.02) / max(0.02, 0.02), 3.0)
+        sent_prob += 0.10 * _sigmoid((passive - 0.2) / 0.3, 3.0)
+        sent_prob += 0.10 * _sigmoid((hedge - 0.01) / 0.02, 3.0)
+        sent_prob += 0.06 * _sigmoid((conj - 0.1) / 0.2, 3.0)
         # No contractions → AI signal
-        sent_prob += 0.10 * _sigmoid((0.01 - crate) / 0.01, 3.0)
+        sent_prob += 0.06 * _sigmoid((0.01 - crate) / 0.01, 3.0)
+        # Chatbot markers → strong AI signal
+        sent_prob += 0.16 * _sigmoid((chatbot - 0.005) / 0.01, 3.0)
         # Sentences very close to mean length → slightly more AI-like
         uniformity = 1.0 - min(len_dev, 1.0)
         sent_prob += 0.16 * _sigmoid((uniformity - 0.5) / 0.5, 2.0)
@@ -332,6 +341,12 @@ def _generate_flags(features: TextFeatures, prob: float) -> list[str]:
         flags.append(
             "No questions in text "
             "\u2014 AI expository text rarely uses rhetorical questions"
+        )
+    if features.chatbot_marker_score > 0.005:
+        pct = features.chatbot_marker_score * 100
+        flags.append(
+            f"AI chatbot phrases detected ({pct:.1f}%) "
+            "\u2014 assistant markers like 'here are', 'let me', 'I'd be happy to'"
         )
 
     return flags

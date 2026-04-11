@@ -32,6 +32,7 @@ class TextFeatures:
     question_ratio: float = 0.0
     list_pattern_density: float = 0.0
     long_ngram_repetition: float = 0.0
+    chatbot_marker_score: float = 0.0
     avg_word_length: float = 0.0
     avg_sentence_length: float = 0.0
     paragraph_count: int = 0

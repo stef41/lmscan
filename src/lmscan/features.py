@@ -472,6 +472,41 @@ _LIST_PATTERN = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 
+# ── Chatbot assistant markers ──────────────────────────────────────────────
+# Phrases that AI assistants use but humans rarely write in natural text.
+# These catch conversational AI (Claude, Gemini, Llama) that use contractions
+# and first-person pronouns but still have telltale assistant patterns.
+
+_CHATBOT_PHRASES: list[str] = [
+    # Greeting / helpfulness markers
+    "i'd be happy to", "i'd be glad to", "happy to help",
+    "i can help with that", "let me help", "i can assist",
+    "great question", "that's a great question", "excellent question",
+    "good question",
+    # Structural markers
+    "let me explain", "let me walk", "let me break",
+    "let me analyze", "let me think", "let me provide",
+    "here's what", "here's how", "here's a", "here's the",
+    "here are some", "here are the", "here is",
+    # Transition/closing markers
+    "i hope this helps", "hope that helps", "hope this helps",
+    "let me know if", "feel free to", "don't hesitate to",
+    "if you have any", "if you need more",
+    # Caveat/safety markers
+    "i should note", "i should mention", "i want to be",
+    "it's worth noting that", "keep in mind that",
+    "please note that", "important to remember",
+    # Step-by-step markers
+    "step by step", "step-by-step",
+    "to provide a comprehensive", "to summarize",
+    "the key point is", "the main idea",
+    "in short,", "in essence,",
+    # Self-reference as AI
+    "as an ai", "as a language model", "i'm a large language model",
+    "i don't have personal", "i cannot", "i can't provide",
+    "i'm not able to",
+]
+
 
 def passive_voice_ratio(text: str) -> float:
     """Estimate the fraction of sentences using passive voice constructions."""
@@ -655,6 +690,32 @@ def long_ngram_repetition(text: str) -> float:
     return repeated / total if total else 0.0
 
 
+def chatbot_marker_score(text: str) -> float:
+    """Detect AI chatbot assistant phrases as fraction of total words.
+
+    Conversational AI (Claude, Gemini, Llama, Cohere) uses contractions
+    and first-person pronouns like humans, but has distinct tell-tale
+    phrases: "I'd be happy to help", "Here are some", "Let me explain",
+    "I hope this helps", etc. Humans almost never write these patterns
+    in natural text.
+    """
+    words = _tokenize(text)
+    if not words:
+        return 0.0
+    text_lower = text.lower()
+    total = len(words)
+    hits = 0
+    for phrase in _CHATBOT_PHRASES:
+        start = 0
+        while True:
+            idx = text_lower.find(phrase, start)
+            if idx == -1:
+                break
+            hits += len(phrase.split())
+            start = idx + 1
+    return hits / total
+
+
 # ── Master extraction function ────────────────────────────────────────────────
 
 def extract_features(text: str) -> TextFeatures:
@@ -693,6 +754,7 @@ def extract_features(text: str) -> TextFeatures:
         question_ratio=round(question_ratio(text), 6),
         list_pattern_density=round(list_pattern_density(text), 6),
         long_ngram_repetition=round(long_ngram_repetition(text), 6),
+        chatbot_marker_score=round(chatbot_marker_score(text), 6),
         avg_word_length=round(avg_wl, 6),
         avg_sentence_length=round(avg_sl, 6),
         paragraph_count=len(paragraphs),
