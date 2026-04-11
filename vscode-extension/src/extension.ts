@@ -1,8 +1,5 @@
 import * as vscode from "vscode";
-import { execFile } from "child_process";
-import { promisify } from "util";
-
-const execFileAsync = promisify(execFile);
+import { spawn } from "child_process";
 
 // Decoration types for AI probability ranges
 const highAiDecoration = vscode.window.createTextEditorDecorationType({
@@ -99,13 +96,25 @@ async function scanText(
   statusBarItem.text = "$(loading~spin) Scanning...";
 
   try {
-    const { stdout } = await execFileAsync(pythonPath, [
-      "-m",
-      "lmscan",
-      "--format",
-      "json",
-      text.substring(0, 50000), // limit text length
-    ]);
+    const stdout = await new Promise<string>((resolve, reject) => {
+      const proc = spawn(pythonPath, ["-m", "lmscan", "--format", "json", "-"], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      let out = "";
+      let err = "";
+      proc.stdout.on("data", (chunk: Buffer) => { out += chunk.toString(); });
+      proc.stderr.on("data", (chunk: Buffer) => { err += chunk.toString(); });
+      proc.on("close", (code) => {
+        if (code === 0 || out.trim().startsWith("{")) {
+          resolve(out);
+        } else {
+          reject(new Error(err || `lmscan exited with code ${code}`));
+        }
+      });
+      proc.on("error", reject);
+      proc.stdin.write(text.substring(0, 200000));
+      proc.stdin.end();
+    });
 
     const result: ScanResult = JSON.parse(stdout);
     const prob = result.ai_probability;
