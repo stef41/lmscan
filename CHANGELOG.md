@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0] - 2026-04-10
+
+### Added
+- 6 new detection features: passive voice ratio, sentence opening diversity, lexical density, character entropy, hedging density, conjunction start ratio
+- Detector expanded from 9 to 14 weighted signals for more accurate scoring
+- TF-IDF weighted vocabulary matching in model fingerprinting
+- Structural pattern matching for model attribution (sentence length, passive voice, paragraph uniformity)
+- VS Code extension deep scan: paragraph-level highlighting with hover tooltips
+- VS Code extension output channel with full forensics report
+- New VS Code commands: `lmscan.deepScan` (paragraph-level) and `lmscan.clear`
+- 386 tests
+
 ## [0.3.0] - 2026-04-10
 
 ### Added

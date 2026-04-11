@@ -154,6 +154,115 @@ _MODEL_PROFILES: dict[str, dict] = {
 }
 
 
+# ── Structural patterns per model family ──────────────────────────────────────
+# Based on empirical observation of LLM output tendencies.
+
+_MODEL_STRUCTURE: dict[str, dict[str, float]] = {
+    "GPT-4 / ChatGPT": {
+        "avg_sentence_length": 22.0,   # GPT-4 favours long, balanced sentences
+        "passive_bias": 0.25,          # moderate passive use
+        "list_tendency": 0.3,          # sometimes uses lists
+        "paragraph_uniformity": 0.8,   # very uniform paragraph sizes
+    },
+    "Claude (Anthropic)": {
+        "avg_sentence_length": 18.0,   # shorter, more conversational
+        "passive_bias": 0.15,
+        "list_tendency": 0.2,
+        "paragraph_uniformity": 0.6,   # more varied
+    },
+    "Gemini (Google)": {
+        "avg_sentence_length": 20.0,
+        "passive_bias": 0.2,
+        "list_tendency": 0.5,          # loves bullet lists
+        "paragraph_uniformity": 0.7,
+    },
+    "Llama / Meta": {
+        "avg_sentence_length": 16.0,   # shorter, punchier
+        "passive_bias": 0.1,
+        "list_tendency": 0.4,
+        "paragraph_uniformity": 0.5,
+    },
+    "Mistral / Mixtral": {
+        "avg_sentence_length": 21.0,
+        "passive_bias": 0.3,           # tends formal/passive
+        "list_tendency": 0.2,
+        "paragraph_uniformity": 0.75,
+    },
+    "Qwen / Qwen2": {
+        "avg_sentence_length": 23.0,   # longest sentences of all
+        "passive_bias": 0.25,
+        "list_tendency": 0.3,
+        "paragraph_uniformity": 0.7,
+    },
+    "DeepSeek": {
+        "avg_sentence_length": 22.0,
+        "passive_bias": 0.2,
+        "list_tendency": 0.35,
+        "paragraph_uniformity": 0.7,
+    },
+    "Cohere / Command R": {
+        "avg_sentence_length": 19.0,
+        "passive_bias": 0.15,
+        "list_tendency": 0.5,
+        "paragraph_uniformity": 0.65,
+    },
+    "Phi / Phi-3": {
+        "avg_sentence_length": 17.0,
+        "passive_bias": 0.15,
+        "list_tendency": 0.3,
+        "paragraph_uniformity": 0.6,
+    },
+}
+
+
+def _structural_score(text: str, model: str) -> float:
+    """Score how well the text's structure matches a model's typical patterns."""
+    profile = _MODEL_STRUCTURE.get(model)
+    if not profile:
+        return 0.0
+
+    from .features import _split_sentences, _tokenize, passive_voice_ratio
+
+    sentences = _split_sentences(text)
+    if len(sentences) < 2:
+        return 0.0
+
+    # Sentence length match
+    lengths = [len(_tokenize(s)) for s in sentences if _tokenize(s)]
+    if not lengths:
+        return 0.0
+    actual_avg = sum(lengths) / len(lengths)
+    expected_avg = profile["avg_sentence_length"]
+    len_match = max(0.0, 1.0 - abs(actual_avg - expected_avg) / expected_avg)
+
+    # Passive voice match
+    actual_passive = passive_voice_ratio(text)
+    expected_passive = profile["passive_bias"]
+    passive_match = max(0.0, 1.0 - abs(actual_passive - expected_passive) / max(expected_passive, 0.1))
+
+    # Paragraph uniformity match
+    from .features import _split_paragraphs
+    paras = _split_paragraphs(text)
+    if len(paras) >= 2:
+        para_lens = [len(_tokenize(p)) for p in paras if _tokenize(p)]
+        if para_lens:
+            mean_pl = sum(para_lens) / len(para_lens)
+            if mean_pl > 0:
+                cv = (sum((l - mean_pl)**2 for l in para_lens) / len(para_lens))**0.5 / mean_pl
+                actual_uniformity = max(0.0, 1.0 - cv)
+            else:
+                actual_uniformity = 0.5
+        else:
+            actual_uniformity = 0.5
+    else:
+        actual_uniformity = 0.5
+    expected_uniformity = profile["paragraph_uniformity"]
+    uniformity_match = max(0.0, 1.0 - abs(actual_uniformity - expected_uniformity))
+
+    # Weighted combination
+    return 0.4 * len_match + 0.3 * passive_match + 0.3 * uniformity_match
+
+
 def fingerprint(text: str) -> list[ModelMatch]:
     """Identify which LLM likely generated *text*.
 
@@ -166,6 +275,7 @@ def fingerprint(text: str) -> list[ModelMatch]:
     text_lower = text.lower()
     words = _tokenize(text)
     word_counts = Counter(words)
+    word_set = set(words)
 
     raw_scores: dict[str, float] = {}
     evidences: dict[str, list[str]] = {}
@@ -200,11 +310,28 @@ def fingerprint(text: str) -> list[ModelMatch]:
                 hedge_hits.append(hedge)
 
         total_markers = len(vocab_hits) + len(phrase_hits) + len(hedge_hits)
+
+        # Vocabulary scoring: TF-IDF-inspired weighting
+        # Rare markers (appearing in fewer model profiles) are worth more
+        vocab_score = 0.0
+        for word, cnt in vocab_hits:
+            # Count how many models share this marker
+            shared = sum(
+                1 for m, p in _MODEL_PROFILES.items()
+                if word.lower() in [v.lower() for v in p["vocabulary"]]
+            )
+            idf = math.log(len(_MODEL_PROFILES) / max(shared, 1)) + 1.0
+            vocab_score += cnt * idf
+
         raw = (
-            sum(cnt for _, cnt in vocab_hits) * 2
-            + len(phrase_hits) * 3
-            + len(hedge_hits) * 5
+            vocab_score * 2
+            + len(phrase_hits) * 4
+            + len(hedge_hits) * 6
         ) * profile["weight"]
+
+        # Add structural pattern bonus
+        struct_bonus = _structural_score(text, model)
+        raw += struct_bonus * 3.0 * profile["weight"]
 
         raw_scores[model] = raw
         marker_counts[model] = total_markers

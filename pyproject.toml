@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lmscan"
-version = "0.4.0"
+version = "0.5.0"
 description = "Detect AI-generated text and fingerprint which LLM wrote it. Open-source GPTZero alternative. Zero dependencies, works offline."
 readme = "README.md"
 license = {text = "Apache-2.0"}

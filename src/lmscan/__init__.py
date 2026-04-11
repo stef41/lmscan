@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from .scanner import scan, scan_file, scan_directory, scan_mixed
 from ._types import ScanResult, TextFeatures, SentenceScore, ModelMatch, ParagraphScore

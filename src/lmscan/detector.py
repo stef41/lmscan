@@ -10,6 +10,9 @@ from .features import (
     _tokenize,
     slop_word_score as _slop_score,
     transition_word_ratio as _transition_ratio,
+    passive_voice_ratio as _passive_ratio,
+    hedging_density as _hedging_density,
+    conjunction_start_ratio as _conjunction_ratio,
 )
 
 # ── Signal definitions ────────────────────────────────────────────────────────
@@ -18,15 +21,21 @@ from .features import (
 # "high_is_ai" → values above threshold push toward AI
 
 _SIGNALS: dict[str, tuple[str, float, float]] = {
-    "burstiness":              ("low_is_ai",  0.24, 0.20),
-    "sentence_length_variance": ("low_is_ai", 0.15, 0.35),
-    "slop_word_score":         ("high_is_ai", 0.24, 0.005),
-    "readability_consistency": ("low_is_ai",  0.03, 1.5),
-    "transition_word_ratio":   ("high_is_ai", 0.12, 0.01),
-    "bigram_repetition":       ("high_is_ai", 0.06, 0.08),
-    "hapax_ratio":             ("low_is_ai",  0.06, 0.50),
-    "zipf_deviation":          ("high_is_ai", 0.05, 0.12),
-    "punctuation_entropy":     ("low_is_ai",  0.05, 1.8),
+    "burstiness":              ("low_is_ai",  0.18, 0.20),
+    "sentence_length_variance": ("low_is_ai", 0.10, 0.35),
+    "slop_word_score":         ("high_is_ai", 0.16, 0.005),
+    "readability_consistency": ("low_is_ai",  0.02, 1.5),
+    "transition_word_ratio":   ("high_is_ai", 0.08, 0.01),
+    "bigram_repetition":       ("high_is_ai", 0.04, 0.08),
+    "hapax_ratio":             ("low_is_ai",  0.04, 0.50),
+    "zipf_deviation":          ("high_is_ai", 0.04, 0.12),
+    "punctuation_entropy":     ("low_is_ai",  0.04, 1.8),
+    # v0.4 advanced signals
+    "passive_voice_ratio":     ("high_is_ai", 0.08, 0.15),
+    "sentence_opening_diversity": ("low_is_ai", 0.06, 0.70),
+    "lexical_density":         ("low_is_ai",  0.04, 0.50),
+    "hedging_density":         ("high_is_ai", 0.06, 0.005),
+    "conjunction_start_ratio": ("high_is_ai", 0.06, 0.10),
 }
 
 # Signals that require enough text structure to be reliable
@@ -131,6 +140,24 @@ def _score_sentences(text: str, features: TextFeatures) -> list[SentenceScore]:
         if trans > 0.04:
             flags.append("Heavy use of transition words")
 
+        # Passive voice
+        passive = _passive_ratio(sent)
+        local_feats["passive"] = round(passive, 4)
+        if passive > 0.5:
+            flags.append("Passive voice construction")
+
+        # Hedging
+        hedge = _hedging_density(sent)
+        local_feats["hedging"] = round(hedge, 4)
+        if hedge > 0.03:
+            flags.append("Hedging/qualifying phrases detected")
+
+        # Conjunction start
+        conj = _conjunction_ratio(sent)
+        local_feats["conj_start"] = round(conj, 4)
+        if conj > 0.5:
+            flags.append("Starts with conjunction/transition adverb")
+
         # Length deviation from mean
         if mean_len > 0:
             len_dev = abs(wc - mean_len) / mean_len
@@ -138,13 +165,16 @@ def _score_sentences(text: str, features: TextFeatures) -> list[SentenceScore]:
             len_dev = 0.0
         local_feats["length_dev"] = round(len_dev, 4)
 
-        # Simple sentence-level AI probability
+        # Sentence-level AI probability — more signals now
         sent_prob = 0.0
-        sent_prob += 0.4 * _sigmoid((slop - 0.01) / max(0.01, 0.01), 3.0)
-        sent_prob += 0.3 * _sigmoid((trans - 0.02) / max(0.02, 0.02), 3.0)
+        sent_prob += 0.25 * _sigmoid((slop - 0.01) / max(0.01, 0.01), 3.0)
+        sent_prob += 0.15 * _sigmoid((trans - 0.02) / max(0.02, 0.02), 3.0)
+        sent_prob += 0.15 * _sigmoid((passive - 0.2) / 0.3, 3.0)
+        sent_prob += 0.15 * _sigmoid((hedge - 0.01) / 0.02, 3.0)
+        sent_prob += 0.10 * _sigmoid((conj - 0.1) / 0.2, 3.0)
         # Sentences very close to mean length → slightly more AI-like
         uniformity = 1.0 - min(len_dev, 1.0)
-        sent_prob += 0.3 * _sigmoid((uniformity - 0.5) / 0.5, 2.0)
+        sent_prob += 0.20 * _sigmoid((uniformity - 0.5) / 0.5, 2.0)
         sent_prob = max(0.0, min(1.0, sent_prob))
 
         scored.append(SentenceScore(
@@ -219,6 +249,29 @@ def _generate_flags(features: TextFeatures, prob: float) -> list[str]:
         flags.append(
             f"Low hapax legomena ratio ({features.hapax_ratio:.2f}) "
             "\u2014 AI text reuses vocabulary more"
+        )
+    if features.passive_voice_ratio > 0.25:
+        pct = features.passive_voice_ratio * 100
+        flags.append(
+            f"High passive voice usage ({pct:.0f}% of sentences) "
+            "\u2014 AI text overuses passive constructions"
+        )
+    if features.sentence_opening_diversity < 0.60 and features.sentence_count >= 4:
+        flags.append(
+            f"Low sentence opening diversity ({features.sentence_opening_diversity:.2f}) "
+            "\u2014 AI text repeats sentence patterns"
+        )
+    if features.hedging_density > 0.01:
+        pct = features.hedging_density * 100
+        flags.append(
+            f"Hedging phrase density ({pct:.1f}%) "
+            "\u2014 qualifying phrases typical of AI text"
+        )
+    if features.conjunction_start_ratio > 0.20 and features.sentence_count >= 3:
+        pct = features.conjunction_start_ratio * 100
+        flags.append(
+            f"Conjunction-heavy sentence starts ({pct:.0f}%) "
+            "\u2014 AI text overuses transition adverbs"
         )
 
     return flags
