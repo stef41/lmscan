@@ -1,0 +1,8 @@
+{"version": 2, "width": 90, "height": 25, "timestamp": 1775873112, "env": {"SHELL": "/usr/bin/bash", "TERM": "xterm-256color"}, "title": "lmscan — AI Text Forensics"}
+[0.004626, "o", "$ pip install lmscan\r\n"]
+[1.006024, "o", "Successfully installed lmscan-0.3.0\r\n\r\n"]
+[1.507258, "o", "$ lmscan \"The intricate interplay between quantum mechanics and classical physics continues to fascinate researchers, offering profound insights into the fundamental nature of reality.\"\r\n"]
+[2.5088, "o", "\r\n╔══════════════════════════════════════════════╗\r\n║             lmscan v0.3.0                    ║\r\n╚══════════════════════════════════════════════╝\r\n\r\n"]
+[2.508943, "o", "  AI Probability:  87%  ██████████████████░░  HIGH\r\n  Fingerprint:     GPT-4 (confidence: 0.82)\r\n\r\n  Feature Breakdown:\r\n  ├─ Burstiness:        0.12  (low — AI-typical)\r\n  ├─ Zipf Deviation:    0.34  (moderate)\r\n  ├─ Hapax Ratio:       0.08  (low — AI-typical)\r\n  ├─ Vocabulary MATTR:  0.71\r\n  ├─ Slop Words:        3     (intricate, profound, fundamental)\r\n  ├─ Sentence Variance: 0.15  (low — AI-typical)\r\n  └─ Entropy:           4.21\r\n\r\n"]
+[3.51018, "o", "$ lmscan --dir ./essays/ --format html\r\n"]
+[4.511385, "o", "  Scanning 12 files...\r\n  ✓ report.html written (4 flagged as AI-generated)\r\n"]

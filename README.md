@@ -14,6 +14,8 @@
 >
 > **lmscan is free, open-source, works offline, and tells you _which_ model wrote the text.**
 
+[![demo](https://asciinema.org/a/7kKLHFzgEJ3sr2Yy.svg)](https://asciinema.org/a/7kKLHFzgEJ3sr2Yy)
+
 ```
 $ lmscan "In today's rapidly evolving digital landscape, it's important
 to note that artificial intelligence has become a pivotal force in
