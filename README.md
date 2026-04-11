@@ -8,6 +8,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/lmscan)](https://pypi.org/project/lmscan/)
 [![CI](https://github.com/stef41/lmscan/actions/workflows/ci.yml/badge.svg)](https://github.com/stef41/lmscan/actions)
 [![Tests](https://img.shields.io/badge/tests-193%20passed-brightgreen)]()
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/stef41/lmscan/badge)](https://scorecard.dev/viewer/?uri=github.com/stef41/lmscan)
 
 > GPTZero charges $15/month. Originality.ai charges per scan. Turnitin locks you into institutional contracts.
 >
