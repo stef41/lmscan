@@ -84,3 +84,55 @@ class ScanResult:
     model_attribution: list[ModelMatch] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
     scan_time_s: float = 0.0
+
+
+# ── Chat / dialog analysis ────────────────────────────────────────────────────
+
+@dataclass
+class ChatMessage:
+    """A single normalised chat turn."""
+
+    text: str
+    speaker: str
+    index: int = 0
+    role: str = ""
+
+
+@dataclass
+class MessageScore:
+    """AI probability for a single chat message."""
+
+    index: int
+    speaker: str
+    text: str
+    ai_probability: float
+    verdict: str = ""
+
+
+@dataclass
+class ParticipantScore:
+    """Aggregated AI verdict for one chat participant."""
+
+    name: str
+    message_count: int = 0
+    word_count: int = 0
+    ai_probability: float = 0.0
+    verdict: str = ""
+    confidence: str = ""
+    is_ai: bool = False
+    model_attribution: list[ModelMatch] = field(default_factory=list)
+    flags: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ChatScanResult:
+    """Complete scan result for a chat dialog transcript."""
+
+    source: str = ""
+    messages: list[ChatMessage] = field(default_factory=list)
+    message_scores: list[MessageScore] = field(default_factory=list)
+    participants: list[ParticipantScore] = field(default_factory=list)
+    likely_bots: list[str] = field(default_factory=list)
+    verdict: str = ""
+    ai_probability: float = 0.0
+    scan_time_s: float = 0.0

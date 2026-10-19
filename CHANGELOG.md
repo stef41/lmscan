@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0] - 2026-10-19
+
+### Added
+- Chat dialog AI-bot detection: analyse a JSON chat transcript between two parties and identify which participant (if any) is an AI bot
+- `scan_chat()` and `scan_chat_file()` Python API returning per-message and per-participant scores plus `likely_bots`
+- Flexible JSON parsing (`parse_chat()`): auto-detects OpenAI-style `{"messages": [{"role", "content"}]}`, generic message lists, `{"participants", "turns"}`, and plain string lists
+- Two-level scoring: lightweight per-message detector + full ensemble (detector + classifier + perplexity + fingerprint) per participant
+- CLI chat mode: `--chat` flag, automatic activation for `.json` files, text and JSON reports
+- New dataclasses: `ChatMessage`, `MessageScore`, `ParticipantScore`, `ChatScanResult`
+- 35 tests
+
 ## [0.6.1] - 2026-04-11
 
 ### Added

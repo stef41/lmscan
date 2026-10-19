@@ -114,6 +114,55 @@ for path in glob.glob("submissions/*.txt"):
     print(f"{path}: {result.verdict} ({result.ai_probability:.0%})")
 ```
 
+### Chat dialogs
+
+Detect whether one side of a chat transcript is an AI bot. Provide the dialog
+as JSON — several common shapes are auto-detected:
+
+```json
+{
+  "messages": [
+    {"role": "user", "content": "Hey, did you catch the game last night?"},
+    {"role": "assistant", "content": "Let's delve into the multifaceted tapestry of innovation."}
+  ]
+}
+```
+
+```bash
+# A .json file is auto-detected as a chat transcript
+lmscan transcript.json
+
+# Or force chat mode explicitly (also works with stdin)
+lmscan --chat transcript.json
+cat transcript.json | lmscan --chat -
+lmscan --chat --format json transcript.json
+```
+
+```python
+from lmscan import scan_chat, scan_chat_file
+
+result = scan_chat_file("transcript.json")
+
+print(result.verdict)          # "Likely AI bot detected: assistant"
+print(result.likely_bots)      # ["assistant"]
+
+# Per-participant aggregate verdict
+for p in result.participants:
+    print(f"{p.name}: {p.ai_probability:.0%} — {p.verdict}")
+    for m in p.model_attribution[:1]:
+        print(f"  likely {m.model} ({m.confidence:.0%})")
+
+# Per-message breakdown
+for m in result.message_scores:
+    flag = "🤖" if m.ai_probability >= 0.5 else "✍️"
+    print(f"  {flag} {m.speaker} ({m.ai_probability:.0%}): {m.text[:60]}")
+```
+
+Accepted JSON shapes: OpenAI-style `{"messages": [{"role", "content"}]}`,
+generic message lists (`speaker`/`from`/`author`/`name` + `text`/`content`/
+`message`/`body`), `{"participants": [...], "turns": [...]}`, and plain string
+lists. `system` messages are ignored.
+
 ## How It Works
 
 lmscan uses **12 statistical features** derived from computational linguistics research to distinguish AI-generated text from human writing:

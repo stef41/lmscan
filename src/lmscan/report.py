@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
-from ._types import ScanResult, ParagraphScore
+from ._types import ScanResult, ParagraphScore, ChatScanResult
 
 _VERSION = "0.1.0"
 
@@ -476,3 +476,99 @@ def format_html(result: ScanResult) -> str:
         '</html>'
     )
     return html
+
+
+def format_chat_report(result: ChatScanResult, *, show_messages: bool = True) -> str:
+    """Generate an ASCII report for a chat/dialog scan."""
+    lines: list[str] = []
+
+    source_label = result.source or "chat transcript"
+    lines.append("\U0001f50d lmscan \u2014 Chat Dialog Forensics")
+    lines.append("\u2550" * 50)
+    lines.append("")
+
+    icon = "\U0001f916" if result.likely_bots else "\u2705"
+    lines.append(f"  Verdict:     {icon} {result.verdict}")
+    lines.append(f"  Messages:    {len(result.messages)}")
+    lines.append(f"  Participants:{len(result.participants):>3}")
+    lines.append(f"  Source:      {source_label}")
+    lines.append(f"  Scanned in {result.scan_time_s:.2f}s")
+    lines.append("")
+
+    # ── Participant table ─────────────────────────────────────────────────
+    if result.participants:
+        lines.append("\U0001f464 Participant Analysis")
+        col_name, col_ai, col_verdict, col_model = 18, 8, 16, 22
+        top = (
+            f"\u250c{'─' * col_name}\u252c{'─' * col_ai}"
+            f"\u252c{'─' * col_verdict}\u252c{'─' * col_model}\u2510"
+        )
+        sep = (
+            f"\u251c{'─' * col_name}\u253c{'─' * col_ai}"
+            f"\u253c{'─' * col_verdict}\u253c{'─' * col_model}\u2524"
+        )
+        bot = (
+            f"\u2514{'─' * col_name}\u2534{'─' * col_ai}"
+            f"\u2534{'─' * col_verdict}\u2534{'─' * col_model}\u2518"
+        )
+        hdr = (
+            f"\u2502 {'Participant':<{col_name - 2}} "
+            f"\u2502 {'AI %':<{col_ai - 2}} "
+            f"\u2502 {'Verdict':<{col_verdict - 2}} "
+            f"\u2502 {'Top Model':<{col_model - 2}} \u2502"
+        )
+        lines.append(top)
+        lines.append(hdr)
+        lines.append(sep)
+
+        for p in result.participants:
+            pct = f"{p.ai_probability * 100:.0f}%"
+            marker = "\U0001f916" if p.is_ai else "\u270d\ufe0f"
+            top_model = p.model_attribution[0].model if p.model_attribution else ""
+            name = p.name[: col_name - 3]
+            lines.append(
+                f"\u2502 {marker} {name:<{col_name - 4}} "
+                f"\u2502 {pct:>{col_ai - 3}} "
+                f"\u2502 {p.verdict:<{col_verdict - 2}} "
+                f"\u2502 {top_model:<{col_model - 2}} \u2502"
+            )
+        lines.append(bot)
+
+        # Per-participant model evidence for flagged bots
+        for p in result.participants:
+            if p.is_ai and p.model_attribution:
+                lines.append(f"  \U0001f50e {p.name}:")
+                for i, m in enumerate(p.model_attribution[:3], 1):
+                    ev_str = ", ".join(m.evidence[:4])
+                    if len(m.evidence) > 4:
+                        ev_str += f", +{len(m.evidence) - 4} more"
+                    lines.append(f"     {i}. {m.model:<22} {m.confidence:>3.0%} \u2014 {ev_str}")
+        lines.append("")
+
+    # ── Per-message breakdown ─────────────────────────────────────────────
+    if show_messages and result.message_scores:
+        lines.append("\U0001f4dd Per-Message Analysis")
+        lines.append("\u2500" * 50)
+        for ms in result.message_scores:
+            prob_pct = ms.ai_probability * 100
+            icon = "\U0001f916" if ms.ai_probability >= 0.5 else "\u270d\ufe0f"
+            preview = ms.text.replace("\n", " ")
+            preview = preview[:52] + ("..." if len(preview) > 52 else "")
+            lines.append(
+                f"  {ms.index + 1:>3}. {icon} {prob_pct:4.0f}%  "
+                f"{ms.speaker:<12} {preview}"
+            )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def format_chat_json(result: ChatScanResult) -> str:
+    """Serialise a :class:`ChatScanResult` to indented JSON."""
+    data = asdict(result)
+    # Drop message bodies to keep output manageable (indices are retained).
+    for msg in data.get("messages", []):
+        msg.pop("text", None)
+    for ms in data.get("message_scores", []):
+        ms.pop("text", None)
+    return json.dumps(data, indent=2, ensure_ascii=False)

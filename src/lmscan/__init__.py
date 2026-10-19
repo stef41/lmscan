@@ -3,7 +3,18 @@ from __future__ import annotations
 __version__ = "0.6.1"
 
 from .scanner import scan, scan_file, scan_directory, scan_mixed
-from ._types import ScanResult, TextFeatures, SentenceScore, ModelMatch, ParagraphScore
+from .chat import scan_chat, scan_chat_file, parse_chat
+from ._types import (
+    ScanResult,
+    TextFeatures,
+    SentenceScore,
+    ModelMatch,
+    ParagraphScore,
+    ChatMessage,
+    MessageScore,
+    ParticipantScore,
+    ChatScanResult,
+)
 from .calibration import calibrate, find_optimal_threshold, CalibrationResult, ThresholdConfig
 from .languages import detect_language, list_languages, get_language_config, LanguageConfig
 from .benchmark import run_benchmark, BenchmarkSample, BenchmarkResult, format_benchmark_report
@@ -16,11 +27,18 @@ __all__ = [
     "scan_file",
     "scan_directory",
     "scan_mixed",
+    "scan_chat",
+    "scan_chat_file",
+    "parse_chat",
     "ScanResult",
     "TextFeatures",
     "SentenceScore",
     "ModelMatch",
     "ParagraphScore",
+    "ChatMessage",
+    "MessageScore",
+    "ParticipantScore",
+    "ChatScanResult",
     "calibrate",
     "find_optimal_threshold",
     "CalibrationResult",

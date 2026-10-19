@@ -14,6 +14,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--file", "-f", help="Path to text file to scan")
     parser.add_argument("--dir", "-d", help="Scan all text files in directory")
     parser.add_argument("--mixed", action="store_true", help="Show per-paragraph analysis for mixed content detection")
+    parser.add_argument("--chat", action="store_true", help="Treat input as a JSON chat transcript and detect AI-bot participants")
     parser.add_argument("--format", choices=["text", "json", "html"], default="text", help="Output format")
     parser.add_argument("--sentences", action="store_true", help="Show per-sentence analysis")
     parser.add_argument("--threshold", type=float, default=0.0, help="Exit with code 1 if AI probability exceeds threshold (for CI)")
@@ -56,6 +57,47 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(format_directory_report(results, dirname=args.dir))
         return 0
+
+    # ── Chat dialog mode ──────────────────────────────────────────────────
+    chat_mode = args.chat
+    if not chat_mode:
+        candidate = args.file or (
+            args.input if args.input and os.path.isfile(args.input) else None
+        )
+        if candidate and candidate.lower().endswith(".json"):
+            chat_mode = True
+
+    if chat_mode:
+        from .chat import scan_chat, scan_chat_file
+        from .report import format_chat_report, format_chat_json
+
+        # Only use --threshold when explicitly set; 0.0 would flag everyone.
+        chat_threshold = args.threshold if args.threshold > 0 else 0.5
+
+        if args.file:
+            if not os.path.isfile(args.file):
+                print(f"Error: file '{args.file}' not found", file=sys.stderr)
+                return 1
+            result = scan_chat_file(args.file, threshold=chat_threshold)
+        elif args.input == "-":
+            result = scan_chat(sys.stdin.read(), threshold=chat_threshold)
+        elif args.input:
+            if os.path.isfile(args.input):
+                result = scan_chat_file(args.input, threshold=chat_threshold)
+            else:
+                result = scan_chat(args.input, threshold=chat_threshold)
+        elif not sys.stdin.isatty():
+            result = scan_chat(sys.stdin.read(), threshold=chat_threshold)
+        else:
+            print("Error: no chat input provided", file=sys.stderr)
+            return 1
+
+        if args.format == "json":
+            print(format_chat_json(result))
+        else:
+            print(format_chat_report(result))
+
+        return 1 if result.likely_bots else 0
 
     # Determine input text
     text = None
